@@ -1,0 +1,764 @@
+/**
+ * Blood Donor Management System - Backend API Server
+ * 
+ * This server connects the frontend with the MySQL database
+ * following the ERD structure defined in database.sql
+ * 
+ * Database Tables (from ERD):
+ * - LOCATION: Stores location information
+ * - BLOOD_GROUP: Blood types and Rh factors
+ * - DONOR: Donor information with FK to LOCATION and BLOOD_GROUP
+ * - CONTACT_NUMBER: Multiple phone numbers per donor (1:N)
+ * - BLOOD_COMPATIBILITY: Blood type compatibility rules
+ * - EMERGENCY_REQUEST: Emergency blood requests
+ * - OTP: OTP verification records
+ */
+
+const express = require('express');
+const mysql = require('mysql2/promise');
+const cors = require('cors');
+const bcrypt = require('bcryptjs');
+require('dotenv').config();
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Database connection pool
+const pool = mysql.createPool({
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'blood_donor_management',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+});
+
+// In-memory session store (for demo - use Redis in production)
+const sessions = new Map();
+const otpStore = new Map();
+
+// Helper Functions
+
+// Generate 6-digit OTP
+function generateOTP() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+// Generate session token
+function generateSessionToken() {
+  return Math.random().toString(36).substring(2) + Date.now().toString(36);
+}
+
+// Get blood group ID from name (e.g., "A+" -> bg_id)
+async function getBloodGroupId(bloodGroupName) {
+  const match = bloodGroupName.match(/^(A|B|AB|O)([+-])$/);
+  if (!match) return null;
+  
+  const [, bgName, rhFactor] = match;
+  const [rows] = await pool.execute(
+    'SELECT bg_id FROM BLOOD_GROUP WHERE bg_name = ? AND rh_factor = ?',
+    [bgName, rhFactor]
+  );
+  
+  return rows.length > 0 ? rows[0].bg_id : null;
+}
+
+// Get blood group name from ID
+async function getBloodGroupName(bgId) {
+  const [rows] = await pool.execute(
+    'SELECT bg_name, rh_factor FROM BLOOD_GROUP WHERE bg_id = ?',
+    [bgId]
+  );
+  
+  return rows.length > 0 ? `${rows[0].bg_name}${rows[0].rh_factor}` : null;
+}
+
+// Get or create location
+async function getOrCreateLocation(city, area, latitude = null, longitude = null) {
+  // Check if location exists
+  const [existing] = await pool.execute(
+    'SELECT location_id FROM LOCATION WHERE city = ? AND area = ?',
+    [city, area]
+  );
+  
+  if (existing.length > 0) {
+    return existing[0].location_id;
+  }
+  
+  // Create new location
+  const [result] = await pool.execute(
+    'INSERT INTO LOCATION (city, area, latitude, longitude) VALUES (?, ?, ?, ?)',
+    [city, area, latitude, longitude]
+  );
+  
+  return result.insertId;
+}
+
+// Get compatible donor blood groups for a receiver (from BLOOD_COMPATIBILITY table)
+async function getCompatibleDonorBloodGroups(receiverBgId) {
+  const [rows] = await pool.execute(
+    'SELECT donor_bg FROM BLOOD_COMPATIBILITY WHERE receiver_bg = ?',
+    [receiverBgId]
+  );
+  
+  return rows.map(r => r.donor_bg);
+}
+
+// Map gender code to full name
+const genderMap = { 'M': 'Male', 'F': 'Female', 'O': 'Other' };
+const genderReverseMap = { 'Male': 'M', 'Female': 'F', 'Other': 'O' };
+
+// ==================== AUTH ROUTES ====================
+
+// Request OTP
+app.post('/api/auth/request-otp', async (req, res) => {
+  try {
+    const { email, phone } = req.body;
+    
+    if (!email && !phone) {
+      return res.status(400).json({ error: 'Email or phone required' });
+    }
+
+    const otp = generateOTP();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const identifier = email || phone;
+
+    // Store OTP
+    otpStore.set(identifier, { otp, expiresAt, email, phone });
+
+    // In production, send OTP via email/SMS
+    console.log(`OTP for ${identifier}: ${otp}`);
+
+    res.json({ 
+      success: true, 
+      message: 'OTP sent successfully',
+      otp // FOR DEMO ONLY - Remove in production
+    });
+  } catch (error) {
+    console.error('Error requesting OTP:', error);
+    res.status(500).json({ error: 'Failed to send OTP' });
+  }
+});
+
+// Verify OTP
+app.post('/api/auth/verify-otp', async (req, res) => {
+  try {
+    const { email, phone, otp } = req.body;
+    const identifier = email || phone;
+    
+    const otpData = otpStore.get(identifier);
+    
+    if (!otpData) {
+      return res.status(400).json({ error: 'Invalid or expired OTP' });
+    }
+    
+    if (otpData.otp !== otp) {
+      return res.status(400).json({ error: 'Invalid OTP' });
+    }
+    
+    if (new Date(otpData.expiresAt) < new Date()) {
+      otpStore.delete(identifier);
+      return res.status(400).json({ error: 'OTP expired' });
+    }
+
+    // Clean up OTP
+    otpStore.delete(identifier);
+
+    // Check if donor exists
+    let donorId = null;
+    if (email) {
+      const [donors] = await pool.execute(
+        'SELECT donor_id FROM DONOR WHERE email = ? AND is_active = TRUE',
+        [email]
+      );
+      if (donors.length > 0) {
+        donorId = donors[0].donor_id;
+      }
+    }
+
+    // Create session
+    const sessionToken = generateSessionToken();
+    const userData = {
+      id: donorId || identifier,
+      email,
+      phone,
+      donorId,
+      createdAt: new Date().toISOString(),
+      isActive: true
+    };
+
+    sessions.set(sessionToken, userData);
+
+    res.json({ 
+      success: true,
+      token: sessionToken,
+      user: userData
+    });
+  } catch (error) {
+    console.error('Error verifying OTP:', error);
+    res.status(500).json({ error: 'Failed to verify OTP' });
+  }
+});
+
+// ==================== DONOR ROUTES ====================
+
+// Register new donor
+app.post('/api/donors/register', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    const session = sessions.get(token);
+    
+    if (!session) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { name, email, phone, alternatePhone, age, gender, bloodGroup, city, area, address, latitude, longitude } = req.body;
+
+    // Validate age (per ERD: CHECK (age >= 18))
+    if (age < 18) {
+      return res.status(400).json({ error: 'Donor must be 18 or above' });
+    }
+
+    // Check for duplicate email (per ERD: email is UNIQUE)
+    const [existingEmail] = await pool.execute(
+      'SELECT donor_id FROM DONOR WHERE email = ? AND is_active = TRUE',
+      [email]
+    );
+    if (existingEmail.length > 0) {
+      return res.status(400).json({ error: 'Email already registered' });
+    }
+
+    // Check for duplicate phone
+    const [existingPhone] = await pool.execute(
+      'SELECT cn.donor_id FROM CONTACT_NUMBER cn JOIN DONOR d ON cn.donor_id = d.donor_id WHERE cn.phone_number = ? AND d.is_active = TRUE',
+      [phone]
+    );
+    if (existingPhone.length > 0) {
+      return res.status(400).json({ error: 'Phone number already registered' });
+    }
+
+    // Get blood group ID
+    const bloodGroupId = await getBloodGroupId(bloodGroup);
+    if (!bloodGroupId) {
+      return res.status(400).json({ error: 'Invalid blood group' });
+    }
+
+    // Get or create location
+    const locationId = await getOrCreateLocation(city, area, latitude, longitude);
+
+    // Insert donor (per ERD: DONOR table)
+    const [result] = await pool.execute(
+      `INSERT INTO DONOR (full_name, age, gender, email, blood_group, availability, last_donate, is_active, location_id) 
+       VALUES (?, ?, ?, ?, ?, TRUE, NULL, TRUE, ?)`,
+      [name, age, genderReverseMap[gender] || gender, email, bloodGroupId, locationId]
+    );
+
+    const donorId = result.insertId;
+
+    // Insert primary phone (per ERD: CONTACT_NUMBER table, 1:N relationship)
+    await pool.execute(
+      'INSERT INTO CONTACT_NUMBER (donor_id, phone_number) VALUES (?, ?)',
+      [donorId, phone]
+    );
+
+    // Insert alternate phone if provided
+    if (alternatePhone) {
+      await pool.execute(
+        'INSERT INTO CONTACT_NUMBER (donor_id, phone_number) VALUES (?, ?)',
+        [donorId, alternatePhone]
+      );
+    }
+
+    // Update session with donor ID
+    session.donorId = donorId;
+    sessions.set(token, session);
+
+    const donor = {
+      id: donorId.toString(),
+      name,
+      email,
+      phone,
+      alternatePhone,
+      age,
+      gender,
+      bloodGroup,
+      city,
+      area,
+      address: address || '',
+      latitude,
+      longitude,
+      isAvailable: true,
+      isDeleted: false,
+      lastDonationDate: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    res.json({ success: true, donor });
+  } catch (error) {
+    console.error('Error registering donor:', error);
+    res.status(500).json({ error: 'Failed to register donor' });
+  }
+});
+
+// Get donor profile
+app.get('/api/donors/profile', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    const session = sessions.get(token);
+    
+    if (!session || !session.donorId) {
+      return res.status(404).json({ error: 'Donor not found' });
+    }
+
+    // Query donor with location join (per ERD relationships)
+    const [donors] = await pool.execute(
+      `SELECT d.*, l.city, l.area, l.latitude, l.longitude 
+       FROM DONOR d 
+       LEFT JOIN LOCATION l ON d.location_id = l.location_id 
+       WHERE d.donor_id = ? AND d.is_active = TRUE`,
+      [session.donorId]
+    );
+
+    if (donors.length === 0) {
+      return res.status(404).json({ error: 'Donor not found' });
+    }
+
+    const donorRecord = donors[0];
+
+    // Get blood group name
+    const bloodGroupName = await getBloodGroupName(donorRecord.blood_group);
+
+    // Get contact numbers (per ERD: 1:N relationship)
+    const [contacts] = await pool.execute(
+      'SELECT phone_number FROM CONTACT_NUMBER WHERE donor_id = ? ORDER BY contact_id',
+      [session.donorId]
+    );
+
+    const phones = contacts.map(c => c.phone_number);
+
+    // Calculate availability based on 90-day rule
+    let isAvailable = donorRecord.availability;
+    if (donorRecord.last_donate) {
+      const daysSince = Math.floor((Date.now() - new Date(donorRecord.last_donate).getTime()) / (1000 * 60 * 60 * 24));
+      isAvailable = daysSince >= 90;
+    }
+
+    const donor = {
+      id: donorRecord.donor_id.toString(),
+      name: donorRecord.full_name,
+      email: donorRecord.email,
+      phone: phones[0] || '',
+      alternatePhone: phones[1] || '',
+      age: donorRecord.age,
+      gender: genderMap[donorRecord.gender] || donorRecord.gender,
+      bloodGroup: bloodGroupName,
+      city: donorRecord.city || '',
+      area: donorRecord.area || '',
+      address: '',
+      latitude: donorRecord.latitude,
+      longitude: donorRecord.longitude,
+      isAvailable,
+      isDeleted: !donorRecord.is_active,
+      lastDonationDate: donorRecord.last_donate,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    res.json({ donor });
+  } catch (error) {
+    console.error('Error fetching profile:', error);
+    res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+});
+
+// Update donor profile
+app.put('/api/donors/profile', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    const session = sessions.get(token);
+    
+    if (!session || !session.donorId) {
+      return res.status(404).json({ error: 'Donor not found' });
+    }
+
+    const updates = req.body;
+
+    // Update location if changed
+    if (updates.city || updates.area) {
+      const [current] = await pool.execute(
+        'SELECT l.city, l.area FROM DONOR d JOIN LOCATION l ON d.location_id = l.location_id WHERE d.donor_id = ?',
+        [session.donorId]
+      );
+      
+      const newCity = updates.city || current[0]?.city;
+      const newArea = updates.area || current[0]?.area;
+      
+      if (newCity && newArea) {
+        const locationId = await getOrCreateLocation(newCity, newArea, updates.latitude, updates.longitude);
+        await pool.execute('UPDATE DONOR SET location_id = ? WHERE donor_id = ?', [locationId, session.donorId]);
+      }
+    }
+
+    // Update phone numbers
+    if (updates.phone) {
+      const [existingContacts] = await pool.execute(
+        'SELECT contact_id FROM CONTACT_NUMBER WHERE donor_id = ? ORDER BY contact_id',
+        [session.donorId]
+      );
+
+      if (existingContacts.length > 0) {
+        await pool.execute('UPDATE CONTACT_NUMBER SET phone_number = ? WHERE contact_id = ?', 
+          [updates.phone, existingContacts[0].contact_id]);
+      }
+
+      if (updates.alternatePhone && existingContacts.length > 1) {
+        await pool.execute('UPDATE CONTACT_NUMBER SET phone_number = ? WHERE contact_id = ?', 
+          [updates.alternatePhone, existingContacts[1].contact_id]);
+      } else if (updates.alternatePhone) {
+        await pool.execute('INSERT INTO CONTACT_NUMBER (donor_id, phone_number) VALUES (?, ?)', 
+          [session.donorId, updates.alternatePhone]);
+      }
+    }
+
+    // Update last donation date
+    if (updates.lastDonationDate) {
+      const daysSince = Math.floor((Date.now() - new Date(updates.lastDonationDate).getTime()) / (1000 * 60 * 60 * 24));
+      const isAvailable = daysSince >= 90;
+      
+      await pool.execute(
+        'UPDATE DONOR SET last_donate = ?, availability = ? WHERE donor_id = ?',
+        [updates.lastDonationDate, isAvailable, session.donorId]
+      );
+    }
+
+    // Fetch updated profile
+    const profileRes = await fetch(`http://localhost:${PORT}/api/donors/profile`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const profileData = await profileRes.json();
+
+    res.json({ success: true, donor: profileData.donor });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+// Soft delete donor (per ERD: is_active flag)
+app.delete('/api/donors/profile', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    const session = sessions.get(token);
+    
+    if (!session || !session.donorId) {
+      return res.status(404).json({ error: 'Donor not found' });
+    }
+
+    await pool.execute('UPDATE DONOR SET is_active = FALSE WHERE donor_id = ?', [session.donorId]);
+
+    res.json({ success: true, message: 'Donor marked as inactive' });
+  } catch (error) {
+    console.error('Error deleting donor:', error);
+    res.status(500).json({ error: 'Failed to delete donor' });
+  }
+});
+
+// Search donors
+app.post('/api/donors/search', async (req, res) => {
+  try {
+    const { bloodGroup, city, area, isAvailable } = req.body;
+
+    let query = `
+      SELECT d.*, l.city, l.area, l.latitude, l.longitude, bg.bg_name, bg.rh_factor
+      FROM DONOR d 
+      LEFT JOIN LOCATION l ON d.location_id = l.location_id
+      LEFT JOIN BLOOD_GROUP bg ON d.blood_group = bg.bg_id
+      WHERE d.is_active = TRUE
+    `;
+    const params = [];
+
+    if (bloodGroup) {
+      const bgId = await getBloodGroupId(bloodGroup);
+      if (bgId) {
+        query += ' AND d.blood_group = ?';
+        params.push(bgId);
+      }
+    }
+
+    if (city) {
+      query += ' AND LOWER(l.city) LIKE LOWER(?)';
+      params.push(`%${city}%`);
+    }
+
+    if (area) {
+      query += ' AND LOWER(l.area) LIKE LOWER(?)';
+      params.push(`%${area}%`);
+    }
+
+    const [donorsData] = await pool.execute(query, params);
+
+    // Get contact numbers
+    const donorIds = donorsData.map(d => d.donor_id);
+    let contactsByDonor = {};
+    
+    if (donorIds.length > 0) {
+      const [contacts] = await pool.execute(
+        `SELECT donor_id, phone_number FROM CONTACT_NUMBER WHERE donor_id IN (${donorIds.map(() => '?').join(',')})`,
+        donorIds
+      );
+      contacts.forEach(c => {
+        if (!contactsByDonor[c.donor_id]) contactsByDonor[c.donor_id] = [];
+        contactsByDonor[c.donor_id].push(c.phone_number);
+      });
+    }
+
+    let donors = donorsData.map(d => {
+      // Calculate availability
+      let availability = d.availability;
+      if (d.last_donate) {
+        const daysSince = Math.floor((Date.now() - new Date(d.last_donate).getTime()) / (1000 * 60 * 60 * 24));
+        availability = daysSince >= 90;
+      }
+
+      return {
+        id: d.donor_id.toString(),
+        name: d.full_name,
+        email: d.email,
+        phone: contactsByDonor[d.donor_id]?.[0] || '',
+        alternatePhone: contactsByDonor[d.donor_id]?.[1] || '',
+        age: d.age,
+        gender: genderMap[d.gender] || d.gender,
+        bloodGroup: `${d.bg_name}${d.rh_factor}`,
+        city: d.city || '',
+        area: d.area || '',
+        address: '',
+        latitude: d.latitude,
+        longitude: d.longitude,
+        isAvailable: availability,
+        isDeleted: !d.is_active,
+        lastDonationDate: d.last_donate,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+    });
+
+    // Filter by availability if specified
+    if (isAvailable !== undefined) {
+      donors = donors.filter(d => d.isAvailable === isAvailable);
+    }
+
+    res.json({ donors });
+  } catch (error) {
+    console.error('Error searching donors:', error);
+    res.status(500).json({ error: 'Failed to search donors' });
+  }
+});
+
+// ==================== EMERGENCY REQUEST ROUTES ====================
+
+// Create emergency request (per ERD: EMERGENCY_REQUEST table)
+app.post('/api/requests/create', async (req, res) => {
+  try {
+    const { bloodGroup, city, area, hospitalName, contactPhone } = req.body;
+
+    // Get blood group ID
+    const bloodGroupId = await getBloodGroupId(bloodGroup);
+    if (!bloodGroupId) {
+      return res.status(400).json({ error: 'Invalid blood group' });
+    }
+
+    // Get or create location
+    const locationId = await getOrCreateLocation(city, area || '');
+
+    // Insert emergency request
+    const [result] = await pool.execute(
+      `INSERT INTO EMERGENCY_REQUEST (blood_group, hospital_name, request_date, location_id, contact_number) 
+       VALUES (?, ?, NOW(), ?, ?)`,
+      [bloodGroupId, hospitalName, locationId, contactPhone]
+    );
+
+    // Get compatible blood groups (from BLOOD_COMPATIBILITY table per ERD)
+    const compatibleBgIds = await getCompatibleDonorBloodGroups(bloodGroupId);
+
+    // Find compatible, available donors
+    let matchedDonors = [];
+    if (compatibleBgIds.length > 0) {
+      const [donorsData] = await pool.execute(
+        `SELECT d.donor_id, d.full_name, d.blood_group, d.availability, d.last_donate, 
+                l.city, l.area, l.latitude, l.longitude, bg.bg_name, bg.rh_factor
+         FROM DONOR d
+         LEFT JOIN LOCATION l ON d.location_id = l.location_id
+         LEFT JOIN BLOOD_GROUP bg ON d.blood_group = bg.bg_id
+         WHERE d.is_active = TRUE AND d.blood_group IN (${compatibleBgIds.map(() => '?').join(',')})
+         AND LOWER(l.city) LIKE LOWER(?)`,
+        [...compatibleBgIds, `%${city}%`]
+      );
+
+      // Get contact numbers
+      const donorIds = donorsData.map(d => d.donor_id);
+      let contactsByDonor = {};
+      
+      if (donorIds.length > 0) {
+        const [contacts] = await pool.execute(
+          `SELECT donor_id, phone_number FROM CONTACT_NUMBER WHERE donor_id IN (${donorIds.map(() => '?').join(',')})`,
+          donorIds
+        );
+        contacts.forEach(c => {
+          if (!contactsByDonor[c.donor_id]) contactsByDonor[c.donor_id] = c.phone_number;
+        });
+      }
+
+      matchedDonors = donorsData
+        .filter(d => {
+          let isAvailable = d.availability;
+          if (d.last_donate) {
+            const daysSince = Math.floor((Date.now() - new Date(d.last_donate).getTime()) / (1000 * 60 * 60 * 24));
+            isAvailable = daysSince >= 90;
+          }
+          return isAvailable;
+        })
+        .map(d => ({
+          id: d.donor_id.toString(),
+          name: d.full_name,
+          bloodGroup: `${d.bg_name}${d.rh_factor}`,
+          city: d.city || '',
+          area: d.area || '',
+          phone: contactsByDonor[d.donor_id] || '',
+          latitude: d.latitude,
+          longitude: d.longitude
+        }));
+    }
+
+    const request = {
+      id: result.insertId.toString(),
+      bloodGroup,
+      hospitalName,
+      city,
+      area,
+      contactPhone,
+      createdAt: new Date().toISOString(),
+      status: 'active'
+    };
+
+    res.json({ success: true, request, matchedDonors });
+  } catch (error) {
+    console.error('Error creating request:', error);
+    res.status(500).json({ error: 'Failed to create request' });
+  }
+});
+
+// Get active requests
+app.get('/api/requests/active', async (req, res) => {
+  try {
+    const [requests] = await pool.execute(
+      `SELECT er.*, l.city, l.area, bg.bg_name, bg.rh_factor
+       FROM EMERGENCY_REQUEST er
+       LEFT JOIN LOCATION l ON er.location_id = l.location_id
+       LEFT JOIN BLOOD_GROUP bg ON er.blood_group = bg.bg_id
+       ORDER BY er.request_date DESC`
+    );
+
+    const formattedRequests = requests.map(r => ({
+      id: r.request_id.toString(),
+      bloodGroup: `${r.bg_name}${r.rh_factor}`,
+      hospitalName: r.hospital_name,
+      city: r.city || '',
+      area: r.area || '',
+      contactPhone: r.contact_number,
+      createdAt: r.request_date,
+      status: 'active'
+    }));
+
+    res.json({ requests: formattedRequests });
+  } catch (error) {
+    console.error('Error fetching requests:', error);
+    res.status(500).json({ error: 'Failed to fetch requests' });
+  }
+});
+
+// ==================== STATISTICS ROUTES ====================
+
+app.get('/api/statistics', async (req, res) => {
+  try {
+    // Get all donors with blood groups and locations
+    const [donorsData] = await pool.execute(
+      `SELECT d.donor_id, d.blood_group, d.availability, d.last_donate, d.is_active, 
+              l.city, bg.bg_name, bg.rh_factor
+       FROM DONOR d
+       LEFT JOIN LOCATION l ON d.location_id = l.location_id
+       LEFT JOIN BLOOD_GROUP bg ON d.blood_group = bg.bg_id`
+    );
+
+    const activeDonors = donorsData.filter(d => d.is_active);
+    const inactiveDonors = donorsData.filter(d => !d.is_active);
+
+    // Calculate availability with 90-day rule
+    const availableDonors = activeDonors.filter(d => {
+      if (d.last_donate) {
+        const daysSince = Math.floor((Date.now() - new Date(d.last_donate).getTime()) / (1000 * 60 * 60 * 24));
+        return daysSince >= 90;
+      }
+      return d.availability;
+    });
+
+    const unavailableDonors = activeDonors.filter(d => {
+      if (d.last_donate) {
+        const daysSince = Math.floor((Date.now() - new Date(d.last_donate).getTime()) / (1000 * 60 * 60 * 24));
+        return daysSince < 90;
+      }
+      return !d.availability;
+    });
+
+    // Blood group statistics
+    const byBloodGroup = {};
+    activeDonors.forEach(d => {
+      const bgName = `${d.bg_name}${d.rh_factor}`;
+      byBloodGroup[bgName] = (byBloodGroup[bgName] || 0) + 1;
+    });
+
+    // City statistics
+    const byCity = {};
+    activeDonors.forEach(d => {
+      const city = d.city || 'Unknown';
+      byCity[city] = (byCity[city] || 0) + 1;
+    });
+
+    res.json({
+      totalDonors: activeDonors.length,
+      activeDonors: activeDonors.length,
+      inactiveDonors: inactiveDonors.length,
+      availableDonors: availableDonors.length,
+      unavailableDonors: unavailableDonors.length,
+      byBloodGroup,
+      byCity
+    });
+  } catch (error) {
+    console.error('Error fetching statistics:', error);
+    res.status(500).json({ error: 'Failed to fetch statistics' });
+  }
+});
+
+// Health check endpoint
+app.get('/api/health', async (req, res) => {
+  try {
+    await pool.execute('SELECT 1');
+    res.json({ status: 'healthy', database: 'connected' });
+  } catch (error) {
+    res.status(500).json({ status: 'unhealthy', database: 'disconnected', error: error.message });
+  }
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`Blood Donor Management API Server running on port ${PORT}`);
+  console.log(`Database: blood_donor_management (MySQL)`);
+  console.log(`ERD tables: LOCATION, BLOOD_GROUP, DONOR, CONTACT_NUMBER, BLOOD_COMPATIBILITY, EMERGENCY_REQUEST, OTP`);
+});
+
+module.exports = app;

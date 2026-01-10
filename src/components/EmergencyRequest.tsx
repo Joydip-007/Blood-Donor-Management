@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AlertCircle, Phone, MapPin, Droplet, Clock, User, Building } from 'lucide-react';
-import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { API_BASE_URL } from '../utils/api';
 import { BloodGroup, MatchedDonor } from '../types';
 
 export function EmergencyRequest() {
@@ -49,12 +49,11 @@ export function EmergencyRequest() {
       }
 
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-6e4ea9c3/requests/create`,
+        `${API_BASE_URL}/requests/create`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${publicAnonKey}`,
           },
           body: JSON.stringify({
             ...formData,

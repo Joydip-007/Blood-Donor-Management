@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { User, MapPin, Phone, Mail, Droplet, Calendar, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { API_BASE_URL } from '../utils/api';
 import { BloodGroup } from '../types';
 
 interface Props {
@@ -88,7 +88,7 @@ export function DonorRegistration({ onSuccess }: Props) {
 
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-6e4ea9c3/donors/register`,
+        `${API_BASE_URL}/donors/register`,
         {
           method: 'POST',
           headers: {

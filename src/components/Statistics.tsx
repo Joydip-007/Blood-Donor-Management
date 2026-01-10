@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, Users, MapPin, Droplet, Activity, PieChart } from 'lucide-react';
 import { BarChart, Bar, PieChart as RechartsPie, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { API_BASE_URL } from '../utils/api';
 import { Statistics as StatsType, BloodGroup } from '../types';
 
 export function Statistics() {
@@ -17,10 +17,10 @@ export function Statistics() {
 
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-6e4ea9c3/statistics`,
+        `${API_BASE_URL}/statistics`,
         {
           headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
+            'Content-Type': 'application/json',
           },
         }
       );
