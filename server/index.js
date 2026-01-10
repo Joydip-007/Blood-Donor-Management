@@ -18,10 +18,14 @@ const express = require('express');
 const mysql = require('mysql2/promise');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
+const { Resend } = require('resend');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Initialize Resend client
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Middleware
 app.use(cors());
@@ -113,6 +117,107 @@ async function getCompatibleDonorBloodGroups(receiverBgId) {
 const genderMap = { 'M': 'Male', 'F': 'Female', 'O': 'Other' };
 const genderReverseMap = { 'Male': 'M', 'Female': 'F', 'Other': 'O' };
 
+// Send OTP via email using Resend
+async function sendOTPEmail(email, otp) {
+  try {
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Blood Donor Management - OTP Verification</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);">
+          <table width="100%" cellpadding="0" cellspacing="0" style="min-height: 100vh;">
+            <tr>
+              <td align="center" style="padding: 40px 20px;">
+                <table width="100%" style="max-width: 600px; background: white; border-radius: 16px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); overflow: hidden;">
+                  <!-- Header -->
+                  <tr>
+                    <td style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); padding: 40px 30px; text-align: center;">
+                      <div style="font-size: 48px; margin-bottom: 10px;">🩸</div>
+                      <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.5px;">Blood Donor Management</h1>
+                      <p style="color: #fecaca; margin: 10px 0 0 0; font-size: 14px;">OTP Verification</p>
+                    </td>
+                  </tr>
+                  
+                  <!-- Content -->
+                  <tr>
+                    <td style="padding: 40px 30px;">
+                      <h2 style="color: #1f2937; margin: 0 0 20px 0; font-size: 24px; font-weight: 600;">Your Verification Code</h2>
+                      <p style="color: #6b7280; margin: 0 0 30px 0; font-size: 16px; line-height: 1.5;">
+                        Please use the following One-Time Password (OTP) to complete your authentication:
+                      </p>
+                      
+                      <!-- OTP Box -->
+                      <div style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 2px solid #dc2626; border-radius: 12px; padding: 30px; text-align: center; margin: 30px 0;">
+                        <div style="color: #991b1b; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">Your OTP Code</div>
+                        <div style="font-size: 42px; font-weight: 700; color: #dc2626; letter-spacing: 8px; font-family: 'Courier New', Courier, monospace; margin: 10px 0;">${otp}</div>
+                      </div>
+                      
+                      <!-- Validity Notice -->
+                      <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px 20px; border-radius: 8px; margin: 30px 0;">
+                        <p style="color: #92400e; margin: 0; font-size: 14px; line-height: 1.5;">
+                          ⏱️ <strong>Valid for 10 minutes only.</strong> This code will expire after 10 minutes for security reasons.
+                        </p>
+                      </div>
+                      
+                      <!-- Security Warning -->
+                      <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                        <h3 style="color: #dc2626; margin: 0 0 10px 0; font-size: 16px; font-weight: 600;">🔒 Security Notice</h3>
+                        <ul style="color: #991b1b; margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.6;">
+                          <li>Never share this OTP with anyone</li>
+                          <li>Our staff will never ask for your OTP</li>
+                          <li>If you didn't request this code, please ignore this email</li>
+                        </ul>
+                      </div>
+                      
+                      <p style="color: #9ca3af; margin: 30px 0 0 0; font-size: 14px; line-height: 1.5;">
+                        If you have any questions or didn't request this verification code, please contact our support team.
+                      </p>
+                    </td>
+                  </tr>
+                  
+                  <!-- Footer -->
+                  <tr>
+                    <td style="background: #f9fafb; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb;">
+                      <p style="color: #6b7280; margin: 0; font-size: 14px;">
+                        <strong>Blood Donor Management System</strong>
+                      </p>
+                      <p style="color: #9ca3af; margin: 10px 0 0 0; font-size: 12px;">
+                        Saving lives together, one donation at a time
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+      </html>
+    `;
+
+    const { data, error } = await resend.emails.send({
+      from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+      to: [email],
+      subject: 'Your OTP Code - Blood Donor Management',
+      html: htmlContent,
+    });
+
+    if (error) {
+      console.error('Resend API error:', error);
+      return { success: false, error };
+    }
+
+    console.log('OTP email sent successfully:', data);
+    return { success: true, data };
+  } catch (error) {
+    console.error('Error sending OTP email:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 // ==================== AUTH ROUTES ====================
 
 // Request OTP
@@ -131,14 +236,35 @@ app.post('/api/auth/request-otp', async (req, res) => {
     // Store OTP
     otpStore.set(identifier, { otp, expiresAt, email, phone });
 
-    // In production, send OTP via email/SMS
-    console.log(`OTP for ${identifier}: ${otp}`);
-
-    res.json({ 
-      success: true, 
-      message: 'OTP sent successfully',
-      otp // FOR DEMO ONLY - Remove in production
-    });
+    // Send OTP via email if email is provided
+    if (email) {
+      const emailResult = await sendOTPEmail(email, otp);
+      
+      if (emailResult.success) {
+        console.log(`OTP email sent successfully to ${email}`);
+        res.json({ 
+          success: true, 
+          message: 'OTP sent to your email successfully',
+          otp // TODO: Remove in production - only for demo/testing
+        });
+      } else {
+        // Log error but don't fail the request - OTP is still valid in store
+        console.error(`Failed to send OTP email to ${email}:`, emailResult.error);
+        res.json({ 
+          success: true, 
+          message: 'OTP generated (email delivery pending)',
+          otp // TODO: Remove in production - only for demo/testing
+        });
+      }
+    } else {
+      // Phone number provided - SMS not implemented yet
+      console.log(`OTP for phone ${phone}: ${otp} (SMS not implemented)`);
+      res.json({ 
+        success: true, 
+        message: 'OTP generated (SMS not implemented)',
+        otp // TODO: Remove in production - only for demo/testing
+      });
+    }
   } catch (error) {
     console.error('Error requesting OTP:', error);
     res.status(500).json({ error: 'Failed to send OTP' });
