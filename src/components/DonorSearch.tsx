@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, MapPin, Droplet, Phone, Filter, Map as MapIcon } from 'lucide-react';
-import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { API_BASE_URL } from '../utils/api';
 import { BloodGroup, Donor } from '../types';
 
 export function DonorSearch() {
@@ -23,12 +23,11 @@ export function DonorSearch() {
 
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-6e4ea9c3/donors/search`,
+        `${API_BASE_URL}/donors/search`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${publicAnonKey}`,
           },
           body: JSON.stringify(filters),
         }

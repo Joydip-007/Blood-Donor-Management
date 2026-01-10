@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Edit2, Save, X, Phone, Mail, MapPin, Calendar, Droplet, AlertCircle, CheckCircle, UserX } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { API_BASE_URL } from '../utils/api';
 import { Donor, BloodGroup } from '../types';
 
 export function DonorProfile() {
@@ -32,7 +32,7 @@ export function DonorProfile() {
 
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-6e4ea9c3/donors/profile`,
+        `${API_BASE_URL}/donors/profile`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -69,7 +69,7 @@ export function DonorProfile() {
 
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-6e4ea9c3/donors/profile`,
+        `${API_BASE_URL}/donors/profile`,
         {
           method: 'PUT',
           headers: {
@@ -110,7 +110,7 @@ export function DonorProfile() {
 
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-6e4ea9c3/donors/profile`,
+        `${API_BASE_URL}/donors/profile`,
         {
           method: 'DELETE',
           headers: {

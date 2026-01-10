@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Mail, Phone, Lock, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { API_BASE_URL } from '../../utils/api';
 
 export function LoginSignup() {
   const [step, setStep] = useState<'input' | 'otp'>('input');
@@ -23,12 +23,11 @@ export function LoginSignup() {
 
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-6e4ea9c3/auth/request-otp`,
+        `${API_BASE_URL}/auth/request-otp`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${publicAnonKey}`,
           },
           body: JSON.stringify({
             email: contactType === 'email' ? email : undefined,
