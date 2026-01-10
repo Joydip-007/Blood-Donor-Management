@@ -14,15 +14,87 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 );
 
-// Initialize database tables
-async function initializeDatabase() {
-  console.log('Database tables should be created through Supabase dashboard');
-  // Tables needed:
-  // - donors (with unique constraints on email and phone)
-  // - blood_requests
-  // - donor_contacts
-  // - donation_history
-  // - cities
+// Database tables based on ERD (database.sql):
+// - LOCATION (location_id, city, area, latitude, longitude)
+// - BLOOD_GROUP (bg_id, bg_name, rh_factor)
+// - DONOR (donor_id, full_name, age, gender, email, blood_group, availability, last_donate, is_active, location_id)
+// - CONTACT_NUMBER (contact_id, donor_id, phone_number)
+// - BLOOD_COMPATIBILITY (comp_id, donor_bg, receiver_bg)
+// - EMERGENCY_REQUEST (request_id, blood_group, hospital_name, request_date, location_id, contact_number)
+// - OTP (otp_id, donor_id, otp_code, expiry_time, is_verified)
+// Note: For initial setup, the system uses kv_store as fallback while proper tables are being migrated
+
+// Helper function to get blood group ID from name
+async function getBloodGroupId(bloodGroupName: string): Promise<number | null> {
+  // Parse blood group name (e.g., "A+" -> bg_name: "A", rh_factor: "+")
+  const match = bloodGroupName.match(/^(A|B|AB|O)([+-])$/);
+  if (!match) return null;
+  
+  const [, bgName, rhFactor] = match;
+  
+  const { data } = await supabase
+    .from('blood_group')
+    .select('bg_id')
+    .eq('bg_name', bgName)
+    .eq('rh_factor', rhFactor)
+    .single();
+  
+  return data?.bg_id || null;
+}
+
+// Helper function to get blood group name from ID
+async function getBloodGroupName(bgId: number): Promise<string | null> {
+  const { data } = await supabase
+    .from('blood_group')
+    .select('bg_name, rh_factor')
+    .eq('bg_id', bgId)
+    .single();
+  
+  return data ? `${data.bg_name}${data.rh_factor}` : null;
+}
+
+// Helper function to get or create location
+async function getOrCreateLocation(city: string, area: string, latitude?: number, longitude?: number): Promise<number> {
+  // Check if location exists
+  let query = supabase
+    .from('location')
+    .select('location_id')
+    .eq('city', city)
+    .eq('area', area);
+  
+  const { data: existingLocation } = await query.single();
+  
+  if (existingLocation) {
+    return existingLocation.location_id;
+  }
+  
+  // Create new location
+  const { data: newLocation, error } = await supabase
+    .from('location')
+    .insert({
+      city,
+      area,
+      latitude: latitude || null,
+      longitude: longitude || null,
+    })
+    .select('location_id')
+    .single();
+  
+  if (error) {
+    throw new Error('Failed to create location: ' + error.message);
+  }
+  
+  return newLocation.location_id;
+}
+
+// Helper function to get compatible blood groups for a receiver
+async function getCompatibleDonorBloodGroups(receiverBgId: number): Promise<number[]> {
+  const { data } = await supabase
+    .from('blood_compatibility')
+    .select('donor_bg')
+    .eq('receiver_bg', receiverBgId);
+  
+  return data?.map(d => d.donor_bg) || [];
 }
 
 // Generate 6-digit OTP
@@ -31,6 +103,8 @@ function generateOTP(): string {
 }
 
 // ==================== AUTH ROUTES ====================
+// OTP table in ERD: OTP (otp_id, donor_id, otp_code, expiry_time, is_verified)
+// For auth, we need a temporary storage before donor registration, using kv_store as fallback
 
 // Request OTP for signup/login
 app.post('/make-server-6e4ea9c3/auth/request-otp', async (c) => {
@@ -44,12 +118,53 @@ app.post('/make-server-6e4ea9c3/auth/request-otp', async (c) => {
     const otp = generateOTP();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    // Store OTP in key-value store
-    const key = `otp:${email || phone}`;
-    await supabase.from('kv_store_6e4ea9c3').upsert({
-      key,
-      value: JSON.stringify({ otp, expiresAt, type, email, phone }),
-    });
+    // Check if user is already a registered donor (using email)
+    if (email) {
+      const { data: existingDonor } = await supabase
+        .from('donor')
+        .select('donor_id')
+        .eq('email', email)
+        .eq('is_active', true)
+        .single();
+
+      if (existingDonor) {
+        // Store OTP in the OTP table for existing donor (per ERD)
+        await supabase.from('otp').insert({
+          donor_id: existingDonor.donor_id,
+          otp_code: otp,
+          expiry_time: expiresAt.toISOString(),
+          is_verified: false,
+        });
+      } else {
+        // New user - store OTP temporarily in kv_store
+        await supabase.from('kv_store_6e4ea9c3').upsert({
+          key: `otp:${email}`,
+          value: JSON.stringify({ otp, expiresAt, type, email, phone }),
+        });
+      }
+    } else if (phone) {
+      // For phone-based auth, check contact_number table
+      const { data: contactRecord } = await supabase
+        .from('contact_number')
+        .select('donor_id')
+        .eq('phone_number', phone)
+        .single();
+
+      if (contactRecord) {
+        await supabase.from('otp').insert({
+          donor_id: contactRecord.donor_id,
+          otp_code: otp,
+          expiry_time: expiresAt.toISOString(),
+          is_verified: false,
+        });
+      } else {
+        // New user - store OTP temporarily
+        await supabase.from('kv_store_6e4ea9c3').upsert({
+          key: `otp:${phone}`,
+          value: JSON.stringify({ otp, expiresAt, type, email, phone }),
+        });
+      }
+    }
 
     // In production, send OTP via email/SMS service
     console.log(`OTP for ${email || phone}: ${otp}`);
@@ -71,63 +186,157 @@ app.post('/make-server-6e4ea9c3/auth/verify-otp', async (c) => {
   try {
     const { email, phone, otp } = await c.req.json();
     
-    const key = `otp:${email || phone}`;
-    const { data: kvData } = await supabase
-      .from('kv_store_6e4ea9c3')
-      .select('value')
-      .eq('key', key)
-      .single();
+    let userData = null;
+    let isExistingDonor = false;
 
-    if (!kvData) {
-      return c.json({ error: 'Invalid or expired OTP' }, 400);
+    // First, check if user is an existing donor
+    if (email) {
+      const { data: existingDonor } = await supabase
+        .from('donor')
+        .select('donor_id, full_name, email')
+        .eq('email', email)
+        .eq('is_active', true)
+        .single();
+
+      if (existingDonor) {
+        // Verify OTP from OTP table (per ERD)
+        const { data: otpRecord } = await supabase
+          .from('otp')
+          .select('*')
+          .eq('donor_id', existingDonor.donor_id)
+          .eq('otp_code', otp)
+          .eq('is_verified', false)
+          .gte('expiry_time', new Date().toISOString())
+          .order('expiry_time', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (!otpRecord) {
+          return c.json({ error: 'Invalid or expired OTP' }, 400);
+        }
+
+        // Mark OTP as verified
+        await supabase
+          .from('otp')
+          .update({ is_verified: true })
+          .eq('otp_id', otpRecord.otp_id);
+
+        isExistingDonor = true;
+        userData = {
+          id: existingDonor.donor_id.toString(),
+          email: existingDonor.email,
+          phone,
+          createdAt: new Date().toISOString(),
+          isActive: true,
+          donorId: existingDonor.donor_id,
+        };
+      }
     }
 
-    const otpData = JSON.parse(kvData.value);
-    
-    if (otpData.otp !== otp) {
-      return c.json({ error: 'Invalid OTP' }, 400);
+    if (phone && !isExistingDonor) {
+      const { data: contactRecord } = await supabase
+        .from('contact_number')
+        .select('donor_id, donor!inner(donor_id, full_name, email, is_active)')
+        .eq('phone_number', phone)
+        .single();
+
+      if (contactRecord && contactRecord.donor?.is_active) {
+        // Verify OTP from OTP table
+        const { data: otpRecord } = await supabase
+          .from('otp')
+          .select('*')
+          .eq('donor_id', contactRecord.donor_id)
+          .eq('otp_code', otp)
+          .eq('is_verified', false)
+          .gte('expiry_time', new Date().toISOString())
+          .order('expiry_time', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (!otpRecord) {
+          return c.json({ error: 'Invalid or expired OTP' }, 400);
+        }
+
+        // Mark OTP as verified
+        await supabase
+          .from('otp')
+          .update({ is_verified: true })
+          .eq('otp_id', otpRecord.otp_id);
+
+        isExistingDonor = true;
+        userData = {
+          id: contactRecord.donor_id.toString(),
+          email: contactRecord.donor.email,
+          phone,
+          createdAt: new Date().toISOString(),
+          isActive: true,
+          donorId: contactRecord.donor_id,
+        };
+      }
     }
 
-    if (new Date(otpData.expiresAt) < new Date()) {
-      return c.json({ error: 'OTP expired' }, 400);
-    }
+    // If not an existing donor, check kv_store for new user OTP
+    if (!isExistingDonor) {
+      const key = `otp:${email || phone}`;
+      const { data: kvData } = await supabase
+        .from('kv_store_6e4ea9c3')
+        .select('value')
+        .eq('key', key)
+        .single();
 
-    // Check if user exists
-    const identifier = email || phone;
-    const { data: existingUser } = await supabase
-      .from('kv_store_6e4ea9c3')
-      .select('value')
-      .eq('key', `user:${identifier}`)
-      .single();
+      if (!kvData) {
+        return c.json({ error: 'Invalid or expired OTP' }, 400);
+      }
 
-    let userData;
-    if (existingUser) {
-      userData = JSON.parse(existingUser.value);
-    } else {
-      // Create new user
-      userData = {
-        id: crypto.randomUUID(),
-        email,
-        phone,
-        createdAt: new Date().toISOString(),
-        isActive: true,
-      };
+      const otpData = JSON.parse(kvData.value);
       
-      await supabase.from('kv_store_6e4ea9c3').insert({
-        key: `user:${identifier}`,
-        value: JSON.stringify(userData),
-      });
+      if (otpData.otp !== otp) {
+        return c.json({ error: 'Invalid OTP' }, 400);
+      }
+
+      if (new Date(otpData.expiresAt) < new Date()) {
+        return c.json({ error: 'OTP expired' }, 400);
+      }
+
+      // Clean up OTP from kv_store
+      await supabase.from('kv_store_6e4ea9c3').delete().eq('key', key);
+
+      // Create temporary user data (full donor registration happens later)
+      const identifier = email || phone;
+      const { data: existingUser } = await supabase
+        .from('kv_store_6e4ea9c3')
+        .select('value')
+        .eq('key', `user:${identifier}`)
+        .single();
+
+      if (existingUser) {
+        userData = JSON.parse(existingUser.value);
+      } else {
+        userData = {
+          id: crypto.randomUUID(),
+          email,
+          phone,
+          createdAt: new Date().toISOString(),
+          isActive: true,
+        };
+        
+        await supabase.from('kv_store_6e4ea9c3').insert({
+          key: `user:${identifier}`,
+          value: JSON.stringify(userData),
+        });
+      }
     }
 
     // Create session token
     const sessionToken = crypto.randomUUID();
     await supabase.from('kv_store_6e4ea9c3').insert({
       key: `session:${sessionToken}`,
-      value: JSON.stringify({ userId: userData.id, createdAt: new Date().toISOString() }),
+      value: JSON.stringify({ 
+        userId: userData.id, 
+        donorId: userData.donorId || null,
+        createdAt: new Date().toISOString() 
+      }),
     });
-
-    // Clean up OTP
-    await supabase.from('kv_store_6e4ea9c3').delete().eq('key', key);
 
     return c.json({ 
       success: true,
@@ -141,6 +350,7 @@ app.post('/make-server-6e4ea9c3/auth/verify-otp', async (c) => {
 });
 
 // ==================== DONOR ROUTES ====================
+// Based on ERD: DONOR table with relationships to LOCATION, BLOOD_GROUP, and CONTACT_NUMBER
 
 // Register new donor
 app.post('/make-server-6e4ea9c3/donors/register', async (c) => {
@@ -163,7 +373,7 @@ app.post('/make-server-6e4ea9c3/donors/register', async (c) => {
     const { userId } = JSON.parse(session.value);
     const donorData = await c.req.json();
 
-    // Validate age
+    // Validate age (per ERD: CHECK (age >= 18))
     if (donorData.age < 18) {
       return c.json({ error: 'Donor must be 18 or above' }, 400);
     }
@@ -174,36 +384,115 @@ app.post('/make-server-6e4ea9c3/donors/register', async (c) => {
       return c.json({ error: 'Invalid blood group' }, 400);
     }
 
-    // Check for duplicate phone/email
-    const { data: existingDonors } = await supabase
-      .from('kv_store_6e4ea9c3')
-      .select('key, value')
-      .like('key', 'donor:%');
+    // Check for duplicate email (per ERD: email is UNIQUE)
+    const { data: existingByEmail } = await supabase
+      .from('donor')
+      .select('donor_id')
+      .eq('email', donorData.email)
+      .eq('is_active', true)
+      .single();
 
-    if (existingDonors) {
-      for (const d of existingDonors) {
-        const donor = JSON.parse(d.value);
-        if (!donor.isDeleted && (donor.phone === donorData.phone || donor.email === donorData.email)) {
-          return c.json({ error: 'Phone or email already registered' }, 400);
-        }
-      }
+    if (existingByEmail) {
+      return c.json({ error: 'Email already registered' }, 400);
     }
 
-    const donor = {
-      id: crypto.randomUUID(),
-      userId,
-      ...donorData,
-      isAvailable: true,
-      isDeleted: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      lastDonationDate: null,
+    // Check for duplicate phone in contact_number table
+    const { data: existingByPhone } = await supabase
+      .from('contact_number')
+      .select('donor_id, donor!inner(is_active)')
+      .eq('phone_number', donorData.phone)
+      .single();
+
+    if (existingByPhone && existingByPhone.donor?.is_active) {
+      return c.json({ error: 'Phone number already registered' }, 400);
+    }
+
+    // Get blood group ID from BLOOD_GROUP table (per ERD relationship)
+    const bloodGroupId = await getBloodGroupId(donorData.bloodGroup);
+    if (!bloodGroupId) {
+      return c.json({ error: 'Invalid blood group' }, 400);
+    }
+
+    // Get or create location (per ERD: DONOR -> LOCATION relationship)
+    const locationId = await getOrCreateLocation(
+      donorData.city,
+      donorData.area,
+      donorData.latitude,
+      donorData.longitude
+    );
+
+    // Map gender to database format
+    const genderMap: Record<string, string> = {
+      'Male': 'M',
+      'Female': 'F',
+      'Other': 'O'
     };
 
-    await supabase.from('kv_store_6e4ea9c3').insert({
-      key: `donor:${donor.id}`,
-      value: JSON.stringify(donor),
+    // Insert donor into DONOR table (per ERD schema)
+    const { data: newDonor, error: donorError } = await supabase
+      .from('donor')
+      .insert({
+        full_name: donorData.name,
+        age: donorData.age,
+        gender: genderMap[donorData.gender] || donorData.gender,
+        email: donorData.email,
+        blood_group: bloodGroupId,
+        availability: true,
+        last_donate: null,
+        is_active: true,
+        location_id: locationId,
+      })
+      .select('donor_id')
+      .single();
+
+    if (donorError) {
+      console.error('Donor insert error:', donorError);
+      return c.json({ error: 'Failed to register donor: ' + donorError.message }, 500);
+    }
+
+    // Insert primary phone into CONTACT_NUMBER table (per ERD: 1:N relationship)
+    await supabase.from('contact_number').insert({
+      donor_id: newDonor.donor_id,
+      phone_number: donorData.phone,
     });
+
+    // Insert alternate phone if provided
+    if (donorData.alternatePhone) {
+      await supabase.from('contact_number').insert({
+        donor_id: newDonor.donor_id,
+        phone_number: donorData.alternatePhone,
+      });
+    }
+
+    // Update session with donor ID
+    const sessionData = JSON.parse(session.value);
+    sessionData.donorId = newDonor.donor_id;
+    await supabase
+      .from('kv_store_6e4ea9c3')
+      .update({ value: JSON.stringify(sessionData) })
+      .eq('key', `session:${token}`);
+
+    // Return donor data in frontend-expected format
+    const donor = {
+      id: newDonor.donor_id.toString(),
+      name: donorData.name,
+      email: donorData.email,
+      phone: donorData.phone,
+      alternatePhone: donorData.alternatePhone,
+      age: donorData.age,
+      gender: donorData.gender,
+      bloodGroup: donorData.bloodGroup,
+      city: donorData.city,
+      area: donorData.area,
+      address: donorData.address || '',
+      latitude: donorData.latitude,
+      longitude: donorData.longitude,
+      isAvailable: true,
+      isDeleted: false,
+      lastDonationDate: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
 
     return c.json({ success: true, donor });
   } catch (error) {
@@ -230,24 +519,90 @@ app.get('/make-server-6e4ea9c3/donors/profile', async (c) => {
       return c.json({ error: 'Invalid session' }, 401);
     }
 
-    const { userId } = JSON.parse(session.value);
+    const sessionData = JSON.parse(session.value);
+    const donorId = sessionData.donorId;
 
-    const { data: donors } = await supabase
-      .from('kv_store_6e4ea9c3')
-      .select('value')
-      .like('key', 'donor:%');
-
-    if (!donors) {
+    if (!donorId) {
       return c.json({ error: 'Donor not found' }, 404);
     }
 
-    const donor = donors
-      .map(d => JSON.parse(d.value))
-      .find(d => d.userId === userId && !d.isDeleted);
+    // Query donor from DONOR table with location join (per ERD relationships)
+    const { data: donorRecord, error: donorError } = await supabase
+      .from('donor')
+      .select(`
+        donor_id,
+        full_name,
+        age,
+        gender,
+        email,
+        blood_group,
+        availability,
+        last_donate,
+        is_active,
+        location:location_id (
+          location_id,
+          city,
+          area,
+          latitude,
+          longitude
+        )
+      `)
+      .eq('donor_id', donorId)
+      .eq('is_active', true)
+      .single();
 
-    if (!donor) {
+    if (donorError || !donorRecord) {
       return c.json({ error: 'Donor not found' }, 404);
     }
+
+    // Get blood group name
+    const bloodGroupName = await getBloodGroupName(donorRecord.blood_group);
+
+    // Get contact numbers from CONTACT_NUMBER table (per ERD: 1:N relationship)
+    const { data: contacts } = await supabase
+      .from('contact_number')
+      .select('phone_number')
+      .eq('donor_id', donorId);
+
+    const phones = contacts?.map(c => c.phone_number) || [];
+
+    // Map gender from database format
+    const genderMap: Record<string, string> = {
+      'M': 'Male',
+      'F': 'Female',
+      'O': 'Other'
+    };
+
+    // Calculate availability based on 90-day rule
+    let isAvailable = donorRecord.availability;
+    if (donorRecord.last_donate) {
+      const daysSinceLastDonation = Math.floor(
+        (new Date().getTime() - new Date(donorRecord.last_donate).getTime()) / (1000 * 60 * 60 * 24)
+      );
+      isAvailable = daysSinceLastDonation >= 90;
+    }
+
+    // Return donor data in frontend-expected format
+    const donor = {
+      id: donorRecord.donor_id.toString(),
+      name: donorRecord.full_name,
+      email: donorRecord.email,
+      phone: phones[0] || '',
+      alternatePhone: phones[1] || '',
+      age: donorRecord.age,
+      gender: genderMap[donorRecord.gender] || donorRecord.gender,
+      bloodGroup: bloodGroupName,
+      city: donorRecord.location?.city || '',
+      area: donorRecord.location?.area || '',
+      address: '', // Address stored separately if needed
+      latitude: donorRecord.location?.latitude,
+      longitude: donorRecord.location?.longitude,
+      isAvailable,
+      isDeleted: !donorRecord.is_active,
+      lastDonationDate: donorRecord.last_donate,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
 
     return c.json({ donor });
   } catch (error) {
@@ -274,55 +629,167 @@ app.put('/make-server-6e4ea9c3/donors/profile', async (c) => {
       return c.json({ error: 'Invalid session' }, 401);
     }
 
-    const { userId } = JSON.parse(session.value);
+    const sessionData = JSON.parse(session.value);
+    const donorId = sessionData.donorId;
+
+    if (!donorId) {
+      return c.json({ error: 'Donor not found' }, 404);
+    }
+
     const updates = await c.req.json();
 
-    const { data: donors } = await supabase
-      .from('kv_store_6e4ea9c3')
-      .select('key, value')
-      .like('key', 'donor:%');
+    // Update location if city/area changed
+    if (updates.city || updates.area) {
+      const { data: currentDonor } = await supabase
+        .from('donor')
+        .select('location:location_id(city, area)')
+        .eq('donor_id', donorId)
+        .single();
 
-    if (!donors) {
-      return c.json({ error: 'Donor not found' }, 404);
+      const newCity = updates.city || currentDonor?.location?.city;
+      const newArea = updates.area || currentDonor?.location?.area;
+
+      if (newCity && newArea) {
+        const locationId = await getOrCreateLocation(
+          newCity,
+          newArea,
+          updates.latitude,
+          updates.longitude
+        );
+
+        await supabase
+          .from('donor')
+          .update({ location_id: locationId })
+          .eq('donor_id', donorId);
+      }
     }
 
-    const donorRecord = donors.find(d => {
-      const donor = JSON.parse(d.value);
-      return donor.userId === userId && !donor.isDeleted;
-    });
+    // Update phone numbers if changed
+    if (updates.phone) {
+      // Get existing contacts
+      const { data: existingContacts } = await supabase
+        .from('contact_number')
+        .select('contact_id, phone_number')
+        .eq('donor_id', donorId)
+        .order('contact_id');
 
-    if (!donorRecord) {
-      return c.json({ error: 'Donor not found' }, 404);
+      // Update primary phone
+      if (existingContacts && existingContacts.length > 0) {
+        await supabase
+          .from('contact_number')
+          .update({ phone_number: updates.phone })
+          .eq('contact_id', existingContacts[0].contact_id);
+      } else {
+        await supabase.from('contact_number').insert({
+          donor_id: donorId,
+          phone_number: updates.phone,
+        });
+      }
+
+      // Update alternate phone
+      if (updates.alternatePhone) {
+        if (existingContacts && existingContacts.length > 1) {
+          await supabase
+            .from('contact_number')
+            .update({ phone_number: updates.alternatePhone })
+            .eq('contact_id', existingContacts[1].contact_id);
+        } else {
+          await supabase.from('contact_number').insert({
+            donor_id: donorId,
+            phone_number: updates.alternatePhone,
+          });
+        }
+      }
     }
 
-    const donor = JSON.parse(donorRecord.value);
-    const updatedDonor = {
-      ...donor,
-      ...updates,
+    // Update last donation date and availability
+    if (updates.lastDonationDate) {
+      const daysSinceLastDonation = Math.floor(
+        (new Date().getTime() - new Date(updates.lastDonationDate).getTime()) / (1000 * 60 * 60 * 24)
+      );
+      const isAvailable = daysSinceLastDonation >= 90;
+
+      await supabase
+        .from('donor')
+        .update({
+          last_donate: updates.lastDonationDate,
+          availability: isAvailable,
+        })
+        .eq('donor_id', donorId);
+    }
+
+    // Fetch updated donor profile
+    const { data: updatedDonor } = await supabase
+      .from('donor')
+      .select(`
+        donor_id,
+        full_name,
+        age,
+        gender,
+        email,
+        blood_group,
+        availability,
+        last_donate,
+        is_active,
+        location:location_id (
+          location_id,
+          city,
+          area,
+          latitude,
+          longitude
+        )
+      `)
+      .eq('donor_id', donorId)
+      .single();
+
+    if (!updatedDonor) {
+      return c.json({ error: 'Failed to fetch updated profile' }, 500);
+    }
+
+    const bloodGroupName = await getBloodGroupName(updatedDonor.blood_group);
+
+    const { data: contacts } = await supabase
+      .from('contact_number')
+      .select('phone_number')
+      .eq('donor_id', donorId);
+
+    const phones = contacts?.map(c => c.phone_number) || [];
+
+    const genderMap: Record<string, string> = {
+      'M': 'Male',
+      'F': 'Female',
+      'O': 'Other'
+    };
+
+    const donor = {
+      id: updatedDonor.donor_id.toString(),
+      name: updatedDonor.full_name,
+      email: updatedDonor.email,
+      phone: phones[0] || '',
+      alternatePhone: phones[1] || '',
+      age: updatedDonor.age,
+      gender: genderMap[updatedDonor.gender] || updatedDonor.gender,
+      bloodGroup: bloodGroupName,
+      city: updatedDonor.location?.city || '',
+      area: updatedDonor.location?.area || '',
+      address: updates.address || '',
+      latitude: updatedDonor.location?.latitude,
+      longitude: updatedDonor.location?.longitude,
+      isAvailable: updatedDonor.availability,
+      isDeleted: !updatedDonor.is_active,
+      lastDonationDate: updatedDonor.last_donate,
+      createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
-    // Update availability based on last donation
-    if (updatedDonor.lastDonationDate) {
-      const daysSinceLastDonation = Math.floor(
-        (new Date().getTime() - new Date(updatedDonor.lastDonationDate).getTime()) / (1000 * 60 * 60 * 24)
-      );
-      updatedDonor.isAvailable = daysSinceLastDonation >= 90;
-    }
-
-    await supabase
-      .from('kv_store_6e4ea9c3')
-      .update({ value: JSON.stringify(updatedDonor) })
-      .eq('key', donorRecord.key);
-
-    return c.json({ success: true, donor: updatedDonor });
+    return c.json({ success: true, donor });
   } catch (error) {
     console.error('Error updating donor profile:', error);
     return c.json({ error: 'Failed to update profile' }, 500);
   }
 });
 
-// Soft delete donor
+// Soft delete donor (per ERD: is_active flag for soft delete)
 app.delete('/make-server-6e4ea9c3/donors/profile', async (c) => {
   try {
     const token = c.req.header('Authorization')?.split(' ')[1];
@@ -340,34 +807,22 @@ app.delete('/make-server-6e4ea9c3/donors/profile', async (c) => {
       return c.json({ error: 'Invalid session' }, 401);
     }
 
-    const { userId } = JSON.parse(session.value);
+    const sessionData = JSON.parse(session.value);
+    const donorId = sessionData.donorId;
 
-    const { data: donors } = await supabase
-      .from('kv_store_6e4ea9c3')
-      .select('key, value')
-      .like('key', 'donor:%');
-
-    if (!donors) {
+    if (!donorId) {
       return c.json({ error: 'Donor not found' }, 404);
     }
 
-    const donorRecord = donors.find(d => {
-      const donor = JSON.parse(d.value);
-      return donor.userId === userId && !donor.isDeleted;
-    });
+    // Soft delete: set is_active to false (per ERD)
+    const { error: updateError } = await supabase
+      .from('donor')
+      .update({ is_active: false })
+      .eq('donor_id', donorId);
 
-    if (!donorRecord) {
-      return c.json({ error: 'Donor not found' }, 404);
+    if (updateError) {
+      return c.json({ error: 'Failed to deactivate donor' }, 500);
     }
-
-    const donor = JSON.parse(donorRecord.value);
-    donor.isDeleted = true;
-    donor.deletedAt = new Date().toISOString();
-
-    await supabase
-      .from('kv_store_6e4ea9c3')
-      .update({ value: JSON.stringify(donor) })
-      .eq('key', donorRecord.key);
 
     return c.json({ success: true, message: 'Donor marked as inactive' });
   } catch (error) {
@@ -376,29 +831,116 @@ app.delete('/make-server-6e4ea9c3/donors/profile', async (c) => {
   }
 });
 
-// Search donors with filters
+// Search donors with filters (using normalized database structure per ERD)
 app.post('/make-server-6e4ea9c3/donors/search', async (c) => {
   try {
     const filters = await c.req.json();
     const { bloodGroup, city, area, isAvailable } = filters;
 
-    const { data: donorsData } = await supabase
-      .from('kv_store_6e4ea9c3')
-      .select('value')
-      .like('key', 'donor:%');
+    // Build query using proper table relationships per ERD
+    let query = supabase
+      .from('donor')
+      .select(`
+        donor_id,
+        full_name,
+        age,
+        gender,
+        email,
+        blood_group,
+        availability,
+        last_donate,
+        is_active,
+        location:location_id (
+          location_id,
+          city,
+          area,
+          latitude,
+          longitude
+        )
+      `)
+      .eq('is_active', true);
 
-    if (!donorsData) {
+    // Filter by blood group if specified
+    if (bloodGroup) {
+      const bgId = await getBloodGroupId(bloodGroup);
+      if (bgId) {
+        query = query.eq('blood_group', bgId);
+      }
+    }
+
+    const { data: donorsData, error } = await query;
+
+    if (error) {
+      console.error('Search error:', error);
       return c.json({ donors: [] });
     }
 
-    let donors = donorsData
-      .map(d => JSON.parse(d.value))
-      .filter(d => !d.isDeleted);
+    // Get all contact numbers for the donors
+    const donorIds = donorsData?.map(d => d.donor_id) || [];
+    const { data: contactsData } = await supabase
+      .from('contact_number')
+      .select('donor_id, phone_number')
+      .in('donor_id', donorIds);
 
-    if (bloodGroup) {
-      donors = donors.filter(d => d.bloodGroup === bloodGroup);
-    }
+    // Group contacts by donor_id
+    const contactsByDonor: Record<number, string[]> = {};
+    contactsData?.forEach(c => {
+      if (!contactsByDonor[c.donor_id]) {
+        contactsByDonor[c.donor_id] = [];
+      }
+      contactsByDonor[c.donor_id].push(c.phone_number);
+    });
 
+    // Get all blood group names
+    const { data: bloodGroups } = await supabase
+      .from('blood_group')
+      .select('bg_id, bg_name, rh_factor');
+
+    const bgMap: Record<number, string> = {};
+    bloodGroups?.forEach(bg => {
+      bgMap[bg.bg_id] = `${bg.bg_name}${bg.rh_factor}`;
+    });
+
+    const genderMap: Record<string, string> = {
+      'M': 'Male',
+      'F': 'Female',
+      'O': 'Other'
+    };
+
+    // Transform and filter donors
+    let donors = (donorsData || []).map(d => {
+      // Calculate availability based on 90-day rule
+      let availability = d.availability;
+      if (d.last_donate) {
+        const daysSinceLastDonation = Math.floor(
+          (new Date().getTime() - new Date(d.last_donate).getTime()) / (1000 * 60 * 60 * 24)
+        );
+        availability = daysSinceLastDonation >= 90;
+      }
+
+      return {
+        id: d.donor_id.toString(),
+        name: d.full_name,
+        email: d.email,
+        phone: contactsByDonor[d.donor_id]?.[0] || '',
+        alternatePhone: contactsByDonor[d.donor_id]?.[1] || '',
+        age: d.age,
+        gender: genderMap[d.gender] || d.gender,
+        bloodGroup: bgMap[d.blood_group] || '',
+        city: d.location?.city || '',
+        area: d.location?.area || '',
+        address: '',
+        latitude: d.location?.latitude,
+        longitude: d.location?.longitude,
+        isAvailable: availability,
+        isDeleted: !d.is_active,
+        lastDonationDate: d.last_donate,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    });
+
+    // Apply location filters
     if (city) {
       donors = donors.filter(d => d.city?.toLowerCase().includes(city.toLowerCase()));
     }
@@ -407,20 +949,10 @@ app.post('/make-server-6e4ea9c3/donors/search', async (c) => {
       donors = donors.filter(d => d.area?.toLowerCase().includes(area.toLowerCase()));
     }
 
+    // Apply availability filter
     if (isAvailable !== undefined) {
       donors = donors.filter(d => d.isAvailable === isAvailable);
     }
-
-    // Update availability dynamically
-    donors = donors.map(donor => {
-      if (donor.lastDonationDate) {
-        const daysSinceLastDonation = Math.floor(
-          (new Date().getTime() - new Date(donor.lastDonationDate).getTime()) / (1000 * 60 * 60 * 24)
-        );
-        donor.isAvailable = daysSinceLastDonation >= 90;
-      }
-      return donor;
-    });
 
     return c.json({ donors });
   } catch (error) {
@@ -430,82 +962,130 @@ app.post('/make-server-6e4ea9c3/donors/search', async (c) => {
 });
 
 // ==================== BLOOD REQUEST ROUTES ====================
+// Based on ERD: EMERGENCY_REQUEST table with relationships to BLOOD_GROUP and LOCATION
+// BLOOD_COMPATIBILITY table defines which blood types can donate to which receivers
 
-// Blood compatibility matrix
-const compatibilityMatrix: Record<string, string[]> = {
-  'A+': ['A+', 'A-', 'O+', 'O-'],
-  'A-': ['A-', 'O-'],
-  'B+': ['B+', 'B-', 'O+', 'O-'],
-  'B-': ['B-', 'O-'],
-  'AB+': ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
-  'AB-': ['A-', 'B-', 'AB-', 'O-'],
-  'O+': ['O+', 'O-'],
-  'O-': ['O-'],
-};
-
-// Create blood request and match donors
+// Create blood request and match donors (using normalized database per ERD)
 app.post('/make-server-6e4ea9c3/requests/create', async (c) => {
   try {
     const requestData = await c.req.json();
-    const { bloodGroup, city, urgency } = requestData;
+    const { bloodGroup, city, area, hospitalName, contactPhone } = requestData;
 
+    // Get blood group ID
+    const bloodGroupId = await getBloodGroupId(bloodGroup);
+    if (!bloodGroupId) {
+      return c.json({ error: 'Invalid blood group' }, 400);
+    }
+
+    // Get or create location
+    const locationId = await getOrCreateLocation(city, area || '');
+
+    // Create emergency request in EMERGENCY_REQUEST table (per ERD)
+    const { data: newRequest, error: requestError } = await supabase
+      .from('emergency_request')
+      .insert({
+        blood_group: bloodGroupId,
+        hospital_name: hospitalName,
+        request_date: new Date().toISOString(),
+        location_id: locationId,
+        contact_number: contactPhone,
+      })
+      .select('request_id')
+      .single();
+
+    if (requestError) {
+      console.error('Request insert error:', requestError);
+      return c.json({ error: 'Failed to create request: ' + requestError.message }, 500);
+    }
+
+    // Get compatible donor blood groups from BLOOD_COMPATIBILITY table (per ERD)
+    const compatibleDonorBgIds = await getCompatibleDonorBloodGroups(bloodGroupId);
+
+    // Find compatible, available donors in the same city
+    const { data: donorsData } = await supabase
+      .from('donor')
+      .select(`
+        donor_id,
+        full_name,
+        blood_group,
+        availability,
+        last_donate,
+        is_active,
+        location:location_id (
+          city,
+          area,
+          latitude,
+          longitude
+        )
+      `)
+      .eq('is_active', true)
+      .in('blood_group', compatibleDonorBgIds);
+
+    // Get contact numbers for compatible donors
+    const donorIds = donorsData?.map(d => d.donor_id) || [];
+    const { data: contactsData } = await supabase
+      .from('contact_number')
+      .select('donor_id, phone_number')
+      .in('donor_id', donorIds);
+
+    const contactsByDonor: Record<number, string> = {};
+    contactsData?.forEach(c => {
+      if (!contactsByDonor[c.donor_id]) {
+        contactsByDonor[c.donor_id] = c.phone_number;
+      }
+    });
+
+    // Get blood group names
+    const { data: bloodGroups } = await supabase
+      .from('blood_group')
+      .select('bg_id, bg_name, rh_factor');
+
+    const bgMap: Record<number, string> = {};
+    bloodGroups?.forEach(bg => {
+      bgMap[bg.bg_id] = `${bg.bg_name}${bg.rh_factor}`;
+    });
+
+    // Filter and transform matched donors
+    const matchedDonors = (donorsData || [])
+      .filter(d => {
+        // Check location matches
+        if (!d.location?.city?.toLowerCase().includes(city.toLowerCase())) {
+          return false;
+        }
+        
+        // Check availability (90-day rule)
+        let isAvailable = d.availability;
+        if (d.last_donate) {
+          const daysSinceLastDonation = Math.floor(
+            (new Date().getTime() - new Date(d.last_donate).getTime()) / (1000 * 60 * 60 * 24)
+          );
+          isAvailable = daysSinceLastDonation >= 90;
+        }
+        return isAvailable;
+      })
+      .map(d => ({
+        id: d.donor_id.toString(),
+        name: d.full_name,
+        bloodGroup: bgMap[d.blood_group] || '',
+        city: d.location?.city || '',
+        area: d.location?.area || '',
+        phone: contactsByDonor[d.donor_id] || '',
+        latitude: d.location?.latitude,
+        longitude: d.location?.longitude,
+      }));
+
+    // Return request data in frontend-expected format
     const request = {
-      id: crypto.randomUUID(),
+      id: newRequest.request_id.toString(),
       ...requestData,
       createdAt: new Date().toISOString(),
       status: 'active',
     };
 
-    await supabase.from('kv_store_6e4ea9c3').insert({
-      key: `request:${request.id}`,
-      value: JSON.stringify(request),
-    });
-
-    // Find compatible donors
-    const compatibleBloodGroups = compatibilityMatrix[bloodGroup] || [];
-
-    const { data: donorsData } = await supabase
-      .from('kv_store_6e4ea9c3')
-      .select('value')
-      .like('key', 'donor:%');
-
-    if (!donorsData) {
-      return c.json({ request, matchedDonors: [] });
-    }
-
-    let matchedDonors = donorsData
-      .map(d => JSON.parse(d.value))
-      .filter(d => 
-        !d.isDeleted &&
-        d.isAvailable &&
-        compatibleBloodGroups.includes(d.bloodGroup) &&
-        d.city?.toLowerCase() === city?.toLowerCase()
-      );
-
-    // Update availability dynamically
-    matchedDonors = matchedDonors.filter(donor => {
-      if (donor.lastDonationDate) {
-        const daysSinceLastDonation = Math.floor(
-          (new Date().getTime() - new Date(donor.lastDonationDate).getTime()) / (1000 * 60 * 60 * 24)
-        );
-        return daysSinceLastDonation >= 90;
-      }
-      return true;
-    });
-
     return c.json({ 
       success: true, 
       request, 
-      matchedDonors: matchedDonors.map(d => ({
-        id: d.id,
-        name: d.name,
-        bloodGroup: d.bloodGroup,
-        city: d.city,
-        area: d.area,
-        phone: d.phone,
-        latitude: d.latitude,
-        longitude: d.longitude,
-      }))
+      matchedDonors
     });
   } catch (error) {
     console.error('Error creating blood request:', error);
@@ -516,19 +1096,46 @@ app.post('/make-server-6e4ea9c3/requests/create', async (c) => {
 // Get all active requests
 app.get('/make-server-6e4ea9c3/requests/active', async (c) => {
   try {
-    const { data: requestsData } = await supabase
-      .from('kv_store_6e4ea9c3')
-      .select('value')
-      .like('key', 'request:%');
+    const { data: requestsData, error } = await supabase
+      .from('emergency_request')
+      .select(`
+        request_id,
+        blood_group,
+        hospital_name,
+        request_date,
+        contact_number,
+        location:location_id (
+          city,
+          area
+        )
+      `)
+      .order('request_date', { ascending: false });
 
-    if (!requestsData) {
+    if (error) {
+      console.error('Fetch requests error:', error);
       return c.json({ requests: [] });
     }
 
-    const requests = requestsData
-      .map(r => JSON.parse(r.value))
-      .filter(r => r.status === 'active')
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    // Get blood group names
+    const { data: bloodGroups } = await supabase
+      .from('blood_group')
+      .select('bg_id, bg_name, rh_factor');
+
+    const bgMap: Record<number, string> = {};
+    bloodGroups?.forEach(bg => {
+      bgMap[bg.bg_id] = `${bg.bg_name}${bg.rh_factor}`;
+    });
+
+    const requests = (requestsData || []).map(r => ({
+      id: r.request_id.toString(),
+      bloodGroup: bgMap[r.blood_group] || '',
+      hospitalName: r.hospital_name,
+      city: r.location?.city || '',
+      area: r.location?.area || '',
+      contactPhone: r.contact_number,
+      createdAt: r.request_date,
+      status: 'active',
+    }));
 
     return c.json({ requests });
   } catch (error) {
@@ -538,52 +1145,92 @@ app.get('/make-server-6e4ea9c3/requests/active', async (c) => {
 });
 
 // ==================== STATISTICS ROUTES ====================
+// Query statistics from normalized database tables per ERD
 
 app.get('/make-server-6e4ea9c3/statistics', async (c) => {
   try {
-    const { data: donorsData } = await supabase
-      .from('kv_store_6e4ea9c3')
-      .select('value')
-      .like('key', 'donor:%');
+    // Get all donors with their blood groups and locations
+    const { data: donorsData, error } = await supabase
+      .from('donor')
+      .select(`
+        donor_id,
+        blood_group,
+        availability,
+        last_donate,
+        is_active,
+        location:location_id (
+          city
+        )
+      `);
 
-    if (!donorsData) {
+    if (error) {
+      console.error('Statistics error:', error);
       return c.json({ 
         totalDonors: 0,
         activeDonors: 0,
         inactiveDonors: 0,
+        availableDonors: 0,
+        unavailableDonors: 0,
         byBloodGroup: {},
         byCity: {},
       });
     }
 
-    const donors = donorsData.map(d => JSON.parse(d.value));
-    const activeDonors = donors.filter(d => !d.isDeleted);
-    const inactiveDonors = donors.filter(d => d.isDeleted);
+    // Get blood group names
+    const { data: bloodGroups } = await supabase
+      .from('blood_group')
+      .select('bg_id, bg_name, rh_factor');
+
+    const bgMap: Record<number, string> = {};
+    bloodGroups?.forEach(bg => {
+      bgMap[bg.bg_id] = `${bg.bg_name}${bg.rh_factor}`;
+    });
+
+    const donors = donorsData || [];
+    const activeDonors = donors.filter(d => d.is_active);
+    const inactiveDonors = donors.filter(d => !d.is_active);
+
+    // Calculate availability with 90-day rule
+    const availableDonors = activeDonors.filter(d => {
+      if (d.last_donate) {
+        const daysSinceLastDonation = Math.floor(
+          (new Date().getTime() - new Date(d.last_donate).getTime()) / (1000 * 60 * 60 * 24)
+        );
+        return daysSinceLastDonation >= 90;
+      }
+      return d.availability;
+    });
+
+    const unavailableDonors = activeDonors.filter(d => {
+      if (d.last_donate) {
+        const daysSinceLastDonation = Math.floor(
+          (new Date().getTime() - new Date(d.last_donate).getTime()) / (1000 * 60 * 60 * 24)
+        );
+        return daysSinceLastDonation < 90;
+      }
+      return !d.availability;
+    });
 
     // Blood group statistics
     const byBloodGroup: Record<string, number> = {};
     activeDonors.forEach(d => {
-      byBloodGroup[d.bloodGroup] = (byBloodGroup[d.bloodGroup] || 0) + 1;
+      const bgName = bgMap[d.blood_group] || 'Unknown';
+      byBloodGroup[bgName] = (byBloodGroup[bgName] || 0) + 1;
     });
 
     // City statistics
     const byCity: Record<string, number> = {};
     activeDonors.forEach(d => {
-      if (d.city) {
-        byCity[d.city] = (byCity[d.city] || 0) + 1;
-      }
+      const city = d.location?.city || 'Unknown';
+      byCity[city] = (byCity[city] || 0) + 1;
     });
-
-    // Availability statistics
-    const availableDonors = activeDonors.filter(d => d.isAvailable).length;
-    const unavailableDonors = activeDonors.filter(d => !d.isAvailable).length;
 
     return c.json({
       totalDonors: activeDonors.length,
       activeDonors: activeDonors.length,
       inactiveDonors: inactiveDonors.length,
-      availableDonors,
-      unavailableDonors,
+      availableDonors: availableDonors.length,
+      unavailableDonors: unavailableDonors.length,
       byBloodGroup,
       byCity,
     });
@@ -594,5 +1241,6 @@ app.get('/make-server-6e4ea9c3/statistics', async (c) => {
 });
 
 console.log('Blood Donor Management Server starting...');
+console.log('Using normalized database tables per ERD schema');
 
 Deno.serve(app.fetch);
