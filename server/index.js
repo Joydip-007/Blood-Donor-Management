@@ -19,6 +19,8 @@ const mysql = require('mysql2/promise');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
+const { Resend } = require('resend');
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -52,6 +54,106 @@ function generateOTP() {
 // Generate session token
 function generateSessionToken() {
   return Math.random().toString(36).substring(2) + Date.now().toString(36);
+}
+
+// Send OTP email via Resend
+async function sendOTPEmail(email, otp) {
+  if (!process.env.RESEND_API_KEY || !process.env.RESEND_FROM_EMAIL || !resend) {
+    console.log(`[EMAIL DISABLED] OTP for ${email}: ${otp}`);
+    return { success: false, demo: true };
+  }
+
+  try {
+    await resend.emails.send({
+      from: process.env.RESEND_FROM_EMAIL,
+      to: email,
+      subject: '🩸 Blood Donor Management - Your OTP Code',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+          <table role="presentation" style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td align="center" style="padding: 40px 0;">
+                <table role="presentation" style="width: 600px; border-collapse: collapse; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                  <!-- Header -->
+                  <tr>
+                    <td style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); padding: 30px; text-align: center;">
+                      <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: bold;">
+                        🩸 Blood Donor Management
+                      </h1>
+                      <p style="margin: 10px 0 0 0; color: #fee2e2; font-size: 16px;">
+                        Secure Authentication
+                      </p>
+                    </td>
+                  </tr>
+                  
+                  <!-- Body -->
+                  <tr>
+                    <td style="padding: 40px 30px;">
+                      <h2 style="margin: 0 0 20px 0; color: #1f2937; font-size: 24px;">
+                        Your Verification Code
+                      </h2>
+                      <p style="margin: 0 0 30px 0; color: #4b5563; font-size: 16px; line-height: 1.5;">
+                        Use this one-time password (OTP) to complete your login:
+                      </p>
+                      
+                      <!-- OTP Box -->
+                      <table role="presentation" style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+                        <tr>
+                          <td align="center" style="background-color: #fef2f2; border: 2px dashed #dc2626; border-radius: 8px; padding: 30px;">
+                            <div style="font-size: 36px; font-weight: bold; color: #dc2626; letter-spacing: 8px; font-family: 'Courier New', monospace;">
+                              ${otp}
+                            </div>
+                            <p style="margin: 15px 0 0 0; color: #991b1b; font-size: 14px;">
+                              Valid for 10 minutes
+                            </p>
+                          </td>
+                        </tr>
+                      </table>
+                      
+                      <!-- Security Notice -->
+                      <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
+                        <p style="margin: 0; color: #92400e; font-size: 14px; line-height: 1.5;">
+                          <strong>⚠️ Security Notice:</strong> Never share this code with anyone. Our team will never ask for your OTP.
+                        </p>
+                      </div>
+                      
+                      <p style="margin: 0; color: #6b7280; font-size: 14px; line-height: 1.5;">
+                        If you didn't request this code, please ignore this email or contact support if you have concerns.
+                      </p>
+                    </td>
+                  </tr>
+                  
+                  <!-- Footer -->
+                  <tr>
+                    <td style="background-color: #f9fafb; padding: 20px 30px; text-align: center; border-top: 1px solid #e5e7eb;">
+                      <p style="margin: 0; color: #9ca3af; font-size: 12px;">
+                        Blood Donor Management System<br>
+                        Saving lives, one donation at a time ❤️
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
+      `
+    });
+    
+    console.log(`✅ OTP email sent to ${email}`);
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Failed to send OTP email:', error);
+    console.log(`[FALLBACK] OTP for ${email}: ${otp}`);
+    return { success: false, error: error.message };
+  }
 }
 
 // Get blood group ID from name (e.g., "A+" -> bg_id)
@@ -131,8 +233,13 @@ app.post('/api/auth/request-otp', async (req, res) => {
     // Store OTP
     otpStore.set(identifier, { otp, expiresAt, email, phone });
 
-    // In production, send OTP via email/SMS
-    console.log(`OTP for ${identifier}: ${otp}`);
+    // Send OTP via email or log to console
+    if (email) {
+      await sendOTPEmail(email, otp);
+    } else {
+      // For phone numbers, log to console (SMS not implemented)
+      console.log(`OTP for ${identifier}: ${otp}`);
+    }
 
     res.json({ 
       success: true, 
@@ -757,8 +864,9 @@ app.get('/api/health', async (req, res) => {
 // Start server
 app.listen(PORT, () => {
   console.log(`Blood Donor Management API Server running on port ${PORT}`);
-  console.log(`Database: blood_donor_management (MySQL)`);
+  console.log(`Database: ${process.env.DB_NAME || 'blood_donor_management'} (MySQL)`);
   console.log(`ERD tables: LOCATION, BLOOD_GROUP, DONOR, CONTACT_NUMBER, BLOOD_COMPATIBILITY, EMERGENCY_REQUEST, OTP`);
+  console.log(`Email service: ${process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL ? 'Resend API ✓ Configured' : '❌ Not configured (OTP will be logged to console)'}`);
 });
 
 module.exports = app;
