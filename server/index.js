@@ -221,20 +221,28 @@ app.post('/api/auth/request-otp', async (req, res) => {
       } else {
         // Fallback: still return success but log the issue
         console.log(`⚠️  Email failed, OTP for ${identifier}: ${otp}`);
-        res.json({ 
+        const response = { 
           success: true, 
-          message: 'OTP generated (email service unavailable)',
-          otp // FOR DEMO/DEV - Remove in production
-        });
+          message: 'OTP generated (email service unavailable)'
+        };
+        // Only include OTP in response for development/demo
+        if (process.env.NODE_ENV !== 'production') {
+          response.otp = otp;
+        }
+        res.json(response);
       }
     } else {
       // Phone OTP - log to console (SMS integration can be added later)
       console.log(`📱 OTP for ${phone}: ${otp}`);
-      res.json({ 
+      const response = { 
         success: true, 
-        message: 'OTP sent successfully',
-        otp // FOR DEMO ONLY - Remove in production
-      });
+        message: 'OTP sent successfully'
+      };
+      // Only include OTP in response for development/demo
+      if (process.env.NODE_ENV !== 'production') {
+        response.otp = otp;
+      }
+      res.json(response);
     }
   } catch (error) {
     console.error('Error requesting OTP:', error);
