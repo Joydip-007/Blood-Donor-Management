@@ -9,14 +9,30 @@ try {
   let serviceAccount;
   
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    // Production: use base64 encoded service account
-    serviceAccount = JSON.parse(
-      Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT, 'base64').toString()
-    );
+    // Production: try raw JSON first, then base64
+    try {
+      // Attempt 1: Parse as raw JSON (easiest for Railway dashboard)
+      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+      console.log('✅ Firebase credentials loaded from raw JSON');
+    } catch (jsonError) {
+      // Attempt 2: Try base64 decoding (for CLI or encoded vars)
+      try {
+        serviceAccount = JSON.parse(
+          Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT, 'base64').toString()
+        );
+        console.log('✅ Firebase credentials loaded from base64');
+      } catch (base64Error) {
+        console.error('❌ Failed to parse Firebase credentials:');
+        console.error('   Raw JSON error:', jsonError.message);
+        console.error('   Base64 error:', base64Error.message);
+        serviceAccount = null;
+      }
+    }
   } else {
     // Local development: try to load from file
     try {
       serviceAccount = require('../firebase-key.json');
+      console.log('✅ Firebase credentials loaded from local file');
     } catch (fileError) {
       console.warn('⚠️  Firebase service account not configured. Phone auth will be disabled.');
       console.warn('   Set FIREBASE_SERVICE_ACCOUNT environment variable for production.');
