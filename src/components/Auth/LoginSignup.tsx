@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Mail, Phone, Lock, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_BASE_URL } from '../../utils/api';
+import phoneAuthService from '../../services/phoneAuthService';
 
 export function LoginSignup() {
   const [step, setStep] = useState<'input' | 'otp'>('input');
@@ -22,32 +23,43 @@ export function LoginSignup() {
     setLoading(true);
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/auth/request-otp`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            email: contactType === 'email' ? email : undefined,
-            phone: contactType === 'phone' ? phone : undefined,
-            type: 'login',
-          }),
+      // Use Firebase for phone authentication
+      if (contactType === 'phone') {
+        await phoneAuthService.sendOTP(phone);
+        setSuccess('OTP sent to your phone via SMS!');
+        setStep('otp');
+      } else {
+        // Use existing email OTP system
+        const response = await fetch(
+          `${API_BASE_URL}/auth/request-otp`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              email: email,
+              type: 'login',
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to send OTP');
         }
-      );
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to send OTP');
+        const data = await response.json();
+        setDemoOtp(data.otp); // For demo purposes
+        setSuccess('OTP sent successfully! Check your email');
+        setStep('otp');
       }
-
-      const data = await response.json();
-      setDemoOtp(data.otp); // For demo purposes
-      setSuccess('OTP sent successfully! Check your ' + contactType);
-      setStep('otp');
     } catch (err: any) {
       setError(err.message);
+      // Reset phone auth service on error
+      if (contactType === 'phone') {
+        phoneAuthService.reset();
+      }
     } finally {
       setLoading(false);
     }
@@ -58,11 +70,26 @@ export function LoginSignup() {
     setLoading(true);
 
     try {
-      await login(
-        contactType === 'email' ? email : '',
-        contactType === 'phone' ? phone : '',
-        otp
-      );
+      // Use Firebase for phone verification
+      if (contactType === 'phone') {
+        const result = await phoneAuthService.verifyOTP(otp);
+
+        if (result.isNewUser) {
+          // New user - redirect to registration
+          window.location.href = '/register?phone=' + result.phone_number;
+        } else {
+          // Existing user - login successful
+          setSuccess('Login successful!');
+          // You may want to call a login callback here
+          // For now, redirect to dashboard
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 1000);
+        }
+      } else {
+        // Use existing email login system
+        await login(email, '', otp);
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -71,7 +98,8 @@ export function LoginSignup() {
   };
 
   const validatePhone = (value: string) => {
-    return /^\d{10}$/.test(value);
+    // Bangladesh mobile numbers: 11 digits starting with 01
+    return /^01\d{9}$/.test(value);
   };
 
   const validateEmail = (value: string) => {
@@ -174,13 +202,18 @@ export function LoginSignup() {
                   <input
                     type="tel"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                    placeholder="1234567890"
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                    placeholder="01712345678"
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                   />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Enter 10-digit mobile number</p>
+                <p className="text-xs text-gray-500 mt-1">Enter 11-digit Bangladesh mobile number (e.g., 01712345678)</p>
               </div>
+            )}
+
+            {/* reCAPTCHA Container for phone auth */}
+            {contactType === 'phone' && (
+              <div id="recaptcha-container" className="flex justify-center"></div>
             )}
 
             <button
@@ -232,6 +265,10 @@ export function LoginSignup() {
                 setStep('input');
                 setOtp('');
                 setDemoOtp('');
+                // Reset phone auth service if using phone
+                if (contactType === 'phone') {
+                  phoneAuthService.reset();
+                }
               }}
               className="w-full text-red-600 py-2 text-sm hover:underline"
             >
