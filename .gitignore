@@ -10,6 +10,9 @@ dist/
 .env.local
 .env.*.local
 
+# Firebase
+firebase-key.json
+
 # IDE
 .vscode/
 .idea/

@@ -3,21 +3,37 @@ const admin = require('firebase-admin');
 
 // Initialize Firebase Admin
 let firebaseApp;
+let isInitialized = false;
 
 try {
-  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
-    ? JSON.parse(
-        Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT, 'base64').toString()
-      )
-    : require('../firebase-key.json'); // Fallback for local development
+  let serviceAccount;
+  
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    // Production: use base64 encoded service account
+    serviceAccount = JSON.parse(
+      Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT, 'base64').toString()
+    );
+  } else {
+    // Local development: try to load from file
+    try {
+      serviceAccount = require('../firebase-key.json');
+    } catch (fileError) {
+      console.warn('⚠️  Firebase service account not configured. Phone auth will be disabled.');
+      console.warn('   Set FIREBASE_SERVICE_ACCOUNT env variable or place firebase-key.json in server directory');
+      serviceAccount = null;
+    }
+  }
 
-  firebaseApp = admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
-
-  console.log('✅ Firebase Admin initialized successfully');
+  if (serviceAccount) {
+    firebaseApp = admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+    isInitialized = true;
+    console.log('✅ Firebase Admin initialized successfully');
+  }
 } catch (error) {
   console.error('❌ Firebase Admin initialization error:', error.message);
+  console.warn('   Phone authentication will be disabled');
 }
 
 /**
@@ -26,6 +42,13 @@ try {
  * @returns {Promise<object>} Decoded token with user info
  */
 async function verifyPhoneToken(idToken) {
+  if (!isInitialized) {
+    return {
+      success: false,
+      error: 'Firebase not initialized. Phone authentication is not available.',
+    };
+  }
+  
   try {
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     return {
@@ -47,6 +70,13 @@ async function verifyPhoneToken(idToken) {
  * @param {string} phoneNumber - Phone number in E.164 format
  */
 async function getUserByPhone(phoneNumber) {
+  if (!isInitialized) {
+    return {
+      success: false,
+      error: 'Firebase not initialized',
+    };
+  }
+  
   try {
     const user = await admin.auth().getUserByPhoneNumber(phoneNumber);
     return { success: true, user };
@@ -62,4 +92,5 @@ module.exports = {
   admin,
   verifyPhoneToken,
   getUserByPhone,
+  isInitialized: () => isInitialized,
 };
