@@ -1,7 +1,7 @@
 // frontend/src/config/firebase.ts
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getAnalytics, isSupported } from 'firebase/analytics';
+import { getAuth, Auth } from 'firebase/auth';
+import { getAnalytics, isSupported, Analytics } from 'firebase/analytics';
 
 // Firebase configuration - these are public environment variables
 const firebaseConfig = {
@@ -16,8 +16,8 @@ const firebaseConfig = {
 
 // Initialize Firebase only if config is provided
 let app;
-let auth;
-let analytics;
+let auth: Auth | undefined;
+let analytics: Analytics | undefined;
 
 try {
   if (firebaseConfig.apiKey) {
@@ -25,6 +25,8 @@ try {
     auth = getAuth(app);
     
     // Initialize Analytics if measurementId exists and is supported
+    // Note: Analytics initialization is async but non-blocking. It's safe to export
+    // immediately since Firebase Analytics queues events until ready.
     if (firebaseConfig.measurementId) {
       isSupported().then(supported => {
         if (supported) {
