@@ -24,6 +24,9 @@ const { Resend } = require('resend');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Import phone auth routes
+const phoneAuthRoutes = require('./routes/phoneAuth');
+
 // Initialize Resend email service
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
@@ -42,6 +45,12 @@ const pool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0
 });
+
+// Set pool for phone auth routes
+phoneAuthRoutes.setPool(pool);
+
+// Use phone auth routes
+app.use('/api/auth/phone', phoneAuthRoutes);
 
 // In-memory session store (for demo - use Redis in production)
 const sessions = new Map();
