@@ -1,3 +1,33 @@
+# ⚠️ DEPRECATED: Firebase Phone Authentication
+
+**Note:** Phone authentication has been removed from this project. The system now uses email OTP authentication only.
+
+This file is kept for historical reference but the Firebase phone authentication feature is no longer available.
+
+## Current Authentication Method
+
+The Blood Donor Management System now exclusively uses **email-based OTP authentication** via the Resend email service.
+
+### How It Works:
+1. User enters their email address
+2. System generates a 6-digit OTP
+3. OTP is sent to the user's email via Resend
+4. User enters the OTP to verify and login
+5. If user doesn't exist, they proceed to registration
+
+### Configuration Required:
+See `server/.env.example` for the required environment variables:
+- `RESEND_API_KEY` - API key from Resend
+- `RESEND_FROM_EMAIL` - Email address to send from
+
+For more information about Resend, visit: https://resend.com
+
+---
+
+## Previous Firebase Setup (DEPRECATED)
+
+The following instructions are no longer applicable but kept for reference:
+
 # Firebase Phone Authentication Setup Guide
 
 This guide explains how to set up Firebase phone authentication for the Blood Donor Management System.
