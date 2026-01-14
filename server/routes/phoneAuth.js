@@ -42,6 +42,7 @@ router.post('/verify', async (req, res) => {
     const phoneNumber = verification.phoneNumber;
 
     // Check if phone number exists in CONTACT_NUMBER table
+    // Note: Also checks without +88 prefix for Bangladesh compatibility
     const [contactResults] = await pool.query(
       `SELECT cn.donor_id, d.full_name, d.email, d.is_active, d.blood_group, d.availability
        FROM CONTACT_NUMBER cn

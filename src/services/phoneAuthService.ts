@@ -22,7 +22,7 @@ class PhoneAuthService {
         containerId,
         {
           size: 'normal',
-          callback: (response: any) => {
+          callback: (_response: string) => {
             console.log('reCAPTCHA solved');
           },
           'expired-callback': () => {
@@ -93,7 +93,14 @@ class PhoneAuthService {
         this.recaptchaVerifier = null;
       }
 
-      throw new Error(error.message || 'Failed to send OTP');
+      // Don't expose full error details in production
+      const errorMessage = error.code === 'auth/invalid-phone-number' 
+        ? 'Invalid phone number format'
+        : error.code === 'auth/quota-exceeded'
+        ? 'SMS quota exceeded. Please try again later.'
+        : 'Failed to send OTP. Please try again.';
+      
+      throw new Error(errorMessage);
     }
   }
 
@@ -120,9 +127,16 @@ class PhoneAuthService {
       );
 
       if (response.data.success) {
-        // Store user data
+        // Store minimal user data in localStorage
+        // Note: Consider using secure storage for sensitive data
         if (response.data.user) {
-          localStorage.setItem('user', JSON.stringify(response.data.user));
+          const userData = {
+            donor_id: response.data.user.donor_id,
+            full_name: response.data.user.full_name,
+            email: response.data.user.email,
+            phone_number: response.data.user.phone_number,
+          };
+          localStorage.setItem('user', JSON.stringify(userData));
         }
         return response.data;
       }

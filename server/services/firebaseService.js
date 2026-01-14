@@ -19,7 +19,7 @@ try {
       serviceAccount = require('../firebase-key.json');
     } catch (fileError) {
       console.warn('⚠️  Firebase service account not configured. Phone auth will be disabled.');
-      console.warn('   Set FIREBASE_SERVICE_ACCOUNT env variable or place firebase-key.json in server directory');
+      console.warn('   Set FIREBASE_SERVICE_ACCOUNT environment variable for production.');
       serviceAccount = null;
     }
   }
