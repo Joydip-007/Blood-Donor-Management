@@ -1,14 +1,11 @@
 import React, { useState } from 'react';
-import { Mail, Phone, Lock, AlertCircle, CheckCircle } from 'lucide-react';
+import { Mail, Lock, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_BASE_URL } from '../../utils/api';
-import phoneAuthService from '../../services/phoneAuthService';
 
 export function LoginSignup() {
   const [step, setStep] = useState<'input' | 'otp'>('input');
-  const [contactType, setContactType] = useState<'email' | 'phone'>('email');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -23,43 +20,32 @@ export function LoginSignup() {
     setLoading(true);
 
     try {
-      // Use Firebase for phone authentication
-      if (contactType === 'phone') {
-        await phoneAuthService.sendOTP(phone);
-        setSuccess('OTP sent to your phone via SMS!');
-        setStep('otp');
-      } else {
-        // Use existing email OTP system
-        const response = await fetch(
-          `${API_BASE_URL}/auth/request-otp`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              email: email,
-              type: 'login',
-            }),
-          }
-        );
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to send OTP');
+      // Use existing email OTP system
+      const response = await fetch(
+        `${API_BASE_URL}/auth/request-otp`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: email,
+            type: 'login',
+          }),
         }
+      );
 
-        const data = await response.json();
-        setDemoOtp(data.otp); // For demo purposes
-        setSuccess('OTP sent successfully! Check your email');
-        setStep('otp');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to send OTP');
       }
+
+      const data = await response.json();
+      setDemoOtp(data.otp); // For demo purposes
+      setSuccess('OTP sent successfully! Check your email');
+      setStep('otp');
     } catch (err: any) {
       setError(err.message);
-      // Reset phone auth service on error
-      if (contactType === 'phone') {
-        phoneAuthService.reset();
-      }
     } finally {
       setLoading(false);
     }
@@ -70,36 +56,13 @@ export function LoginSignup() {
     setLoading(true);
 
     try {
-      // Use Firebase for phone verification
-      if (contactType === 'phone') {
-        const result = await phoneAuthService.verifyOTP(otp);
-
-        if (result.isNewUser) {
-          // New user - redirect to registration
-          window.location.href = '/register?phone=' + result.phone_number;
-        } else {
-          // Existing user - login successful
-          setSuccess('Login successful!');
-          // You may want to call a login callback here
-          // For now, redirect to dashboard
-          setTimeout(() => {
-            window.location.href = '/';
-          }, 1000);
-        }
-      } else {
-        // Use existing email login system
-        await login(email, '', otp);
-      }
+      // Use existing email login system
+      await login(email, '', otp);
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  };
-
-  const validatePhone = (value: string) => {
-    // Bangladesh mobile numbers: 11 digits starting with 01
-    return /^01\d{9}$/.test(value);
   };
 
   const validateEmail = (value: string) => {
@@ -144,85 +107,26 @@ export function LoginSignup() {
 
         {step === 'input' && (
           <div className="space-y-4">
-            {/* Contact Type Toggle */}
-            <div className="flex gap-2 p-1 bg-gray-100 rounded-lg">
-              <button
-                type="button"
-                onClick={() => setContactType('email')}
-                className={`flex-1 py-2 px-4 rounded-md transition-colors flex items-center justify-center gap-2 ${
-                  contactType === 'email'
-                    ? 'bg-white text-red-600 shadow-sm'
-                    : 'text-gray-600'
-                }`}
-              >
-                <Mail size={18} />
-                Email
-              </button>
-              <button
-                type="button"
-                onClick={() => setContactType('phone')}
-                className={`flex-1 py-2 px-4 rounded-md transition-colors flex items-center justify-center gap-2 ${
-                  contactType === 'phone'
-                    ? 'bg-white text-red-600 shadow-sm'
-                    : 'text-gray-600'
-                }`}
-              >
-                <Phone size={18} />
-                Phone
-              </button>
-            </div>
-
             {/* Email Input */}
-            {contactType === 'email' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="your.email@example.com"
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                  />
-                </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Email Address
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="your.email@example.com"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                />
               </div>
-            )}
-
-            {/* Phone Input */}
-            {contactType === 'phone' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Phone Number
-                </label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
-                    placeholder="01712345678"
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-1">Enter 11-digit Bangladesh mobile number (e.g., 01712345678)</p>
-              </div>
-            )}
-
-            {/* reCAPTCHA Container for phone auth */}
-            {contactType === 'phone' && (
-              <div id="recaptcha-container" className="flex justify-center"></div>
-            )}
+            </div>
 
             <button
               onClick={requestOTP}
-              disabled={
-                loading ||
-                (contactType === 'email' && !validateEmail(email)) ||
-                (contactType === 'phone' && !validatePhone(phone))
-              }
+              disabled={loading || !validateEmail(email)}
               className="w-full bg-red-600 text-white py-3 rounded-lg font-medium hover:bg-red-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
               {loading ? 'Sending OTP...' : 'Send OTP'}
@@ -248,7 +152,7 @@ export function LoginSignup() {
                 />
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                OTP sent to {contactType === 'email' ? email : phone}
+                OTP sent to {email}
               </p>
             </div>
 
@@ -265,14 +169,10 @@ export function LoginSignup() {
                 setStep('input');
                 setOtp('');
                 setDemoOtp('');
-                // Reset phone auth service if using phone
-                if (contactType === 'phone') {
-                  phoneAuthService.reset();
-                }
               }}
               className="w-full text-red-600 py-2 text-sm hover:underline"
             >
-              Change {contactType}
+              Change email
             </button>
           </div>
         )}
