@@ -47,6 +47,11 @@ const pool = mysql.createPool({
 const sessions = new Map();
 const otpStore = new Map();
 
+// Configuration constants
+const OTP_EXPIRATION_MS = 10 * 60 * 1000; // 10 minutes
+const EMAIL_MASK_LENGTH = 2; // Show first 2 chars of email local part
+const PHONE_MASK_LENGTH = 4; // Show last 4 digits of phone number
+
 // Helper Functions
 
 // Generate 6-digit OTP
@@ -59,10 +64,29 @@ function generateSessionToken() {
   return Math.random().toString(36).substring(2) + Date.now().toString(36);
 }
 
+// Mask identifier for production logs
+function maskIdentifier(identifier) {
+  if (!identifier) return 'unknown';
+  if (identifier.includes('@')) {
+    // Email: show first chars and domain (or less if email is short)
+    const [local, domain] = identifier.split('@');
+    const maskLength = Math.min(local.length, EMAIL_MASK_LENGTH);
+    return `${local.substring(0, maskLength)}***@${domain}`;
+  } else {
+    // Phone: show last digits (or less if phone is short)
+    const maskLength = Math.min(identifier.length, PHONE_MASK_LENGTH);
+    return `***${identifier.slice(-maskLength)}`;
+  }
+}
+
 // Send OTP via email using Resend
 async function sendOTPEmail(email, otp) {
   if (!resend) {
-    console.log(`⚠️  Resend not configured. OTP for ${email}: ${otp}`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`⚠️  Resend not configured. OTP for ${email}: ${otp}`);
+    } else {
+      console.log(`⚠️  Resend not configured`);
+    }
     return { success: false, error: 'Email service not configured' };
   }
 
@@ -124,7 +148,11 @@ async function sendOTPEmail(email, otp) {
       return { success: false, error: error.message };
     }
 
-    console.log(`✅ OTP email sent to ${email} (ID: ${data.id})`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`✅ OTP email sent to ${email} (ID: ${data.id})`);
+    } else {
+      console.log(`✅ OTP email sent (ID: ${data.id})`);
+    }
     return { success: true, data };
   } catch (error) {
     console.error('Error sending email:', error);
@@ -196,22 +224,46 @@ const genderReverseMap = { 'Male': 'M', 'Female': 'F', 'Other': 'O' };
 // Request OTP
 app.post('/api/auth/request-otp', async (req, res) => {
   try {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('📨 OTP request received:', { email: req.body.email, phone: req.body.phone });
+    } else {
+      console.log('📨 OTP request received');
+    }
+    
     const { email, phone } = req.body;
     
     if (!email && !phone) {
+      console.log('❌ No email or phone provided');
       return res.status(400).json({ error: 'Email or phone required' });
     }
 
     const otp = generateOTP();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`🔑 Generated OTP for ${email || phone}: ${otp}`);
+    } else {
+      console.log(`🔑 Generated OTP for ${maskIdentifier(email || phone)}`);
+    }
+    
+    const expiresAt = new Date(Date.now() + OTP_EXPIRATION_MS);
     const identifier = email || phone;
 
     // Store OTP
     otpStore.set(identifier, { otp, expiresAt, email, phone });
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`💾 OTP stored for ${identifier}, expires at ${expiresAt.toISOString()}`);
+    } else {
+      console.log(`💾 OTP stored, expires at ${expiresAt.toISOString()}`);
+    }
 
     // Send OTP via email if email provided
     if (email) {
+      console.log('📧 Attempting to send email via Resend...');
       const emailResult = await sendOTPEmail(email, otp);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('📧 Email result:', emailResult);
+      } else {
+        console.log(`📧 Email result: ${emailResult.success ? 'success' : 'failed'}`);
+      }
       
       if (emailResult.success) {
         res.json({ 
@@ -220,7 +272,11 @@ app.post('/api/auth/request-otp', async (req, res) => {
         });
       } else {
         // Fallback: still return success but log the issue
-        console.log(`⚠️  Email failed, OTP for ${identifier}: ${otp}`);
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`⚠️  Email failed, OTP for ${identifier}: ${otp}`);
+        } else {
+          console.log(`⚠️  Email failed for ${maskIdentifier(identifier)}`);
+        }
         const response = { 
           success: true, 
           message: 'OTP generated (email service unavailable)'
@@ -233,7 +289,11 @@ app.post('/api/auth/request-otp', async (req, res) => {
       }
     } else {
       // Phone OTP - log to console (SMS integration can be added later)
-      console.log(`📱 OTP for ${phone}: ${otp}`);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`📱 OTP for ${phone}: ${otp}`);
+      } else {
+        console.log(`📱 OTP requested for ${maskIdentifier(phone)}`);
+      }
       const response = { 
         success: true, 
         message: 'OTP sent successfully'
@@ -245,34 +305,69 @@ app.post('/api/auth/request-otp', async (req, res) => {
       res.json(response);
     }
   } catch (error) {
-    console.error('Error requesting OTP:', error);
-    res.status(500).json({ error: 'Failed to send OTP' });
+    console.error('❌ Error in request-otp:', error);
+    if (process.env.NODE_ENV !== 'production') {
+      res.status(500).json({ error: 'Failed to send OTP', details: error.message });
+    } else {
+      res.status(500).json({ error: 'Failed to send OTP' });
+    }
   }
 });
 
 // Verify OTP
 app.post('/api/auth/verify-otp', async (req, res) => {
   try {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('🔐 OTP verification request:', { email: req.body.email, phone: req.body.phone });
+    } else {
+      console.log('🔐 OTP verification request received');
+    }
+    
     const { email, phone, otp } = req.body;
     const identifier = email || phone;
+    
+    if (!identifier) {
+      console.log('❌ No identifier provided for verification');
+      return res.status(400).json({ error: 'Email or phone required' });
+    }
     
     const otpData = otpStore.get(identifier);
     
     if (!otpData) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`❌ No OTP found for ${identifier}`);
+      } else {
+        console.log(`❌ No OTP found for ${maskIdentifier(identifier)}`);
+      }
       return res.status(400).json({ error: 'Invalid or expired OTP' });
     }
     
     if (otpData.otp !== otp) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`❌ Invalid OTP for ${identifier}`);
+      } else {
+        console.log(`❌ Invalid OTP for ${maskIdentifier(identifier)}`);
+      }
       return res.status(400).json({ error: 'Invalid OTP' });
     }
     
     if (new Date(otpData.expiresAt) < new Date()) {
       otpStore.delete(identifier);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`❌ OTP expired for ${identifier}`);
+      } else {
+        console.log(`❌ OTP expired for ${maskIdentifier(identifier)}`);
+      }
       return res.status(400).json({ error: 'OTP expired' });
     }
 
     // Clean up OTP
     otpStore.delete(identifier);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`✅ OTP verified successfully for ${identifier}`);
+    } else {
+      console.log(`✅ OTP verified successfully for ${maskIdentifier(identifier)}`);
+    }
 
     // Check if donor exists
     let donorId = null;
@@ -283,6 +378,13 @@ app.post('/api/auth/verify-otp', async (req, res) => {
       );
       if (donors.length > 0) {
         donorId = donors[0].donor_id;
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`👤 Found existing donor with ID: ${donorId}`);
+        } else {
+          console.log(`👤 Found existing donor`);
+        }
+      } else {
+        console.log(`👤 No existing donor found, new user`);
       }
     }
 
@@ -298,6 +400,7 @@ app.post('/api/auth/verify-otp', async (req, res) => {
     };
 
     sessions.set(sessionToken, userData);
+    console.log(`🎫 Session created`);
 
     res.json({ 
       success: true,
@@ -305,8 +408,12 @@ app.post('/api/auth/verify-otp', async (req, res) => {
       user: userData
     });
   } catch (error) {
-    console.error('Error verifying OTP:', error);
-    res.status(500).json({ error: 'Failed to verify OTP' });
+    console.error('❌ Error in verify-otp:', error);
+    if (process.env.NODE_ENV !== 'production') {
+      res.status(500).json({ error: 'Failed to verify OTP', details: error.message });
+    } else {
+      res.status(500).json({ error: 'Failed to verify OTP' });
+    }
   }
 });
 
@@ -853,9 +960,17 @@ app.get('/api/statistics', async (req, res) => {
 app.get('/api/health', async (req, res) => {
   try {
     await pool.execute('SELECT 1');
-    res.json({ status: 'healthy', database: 'connected' });
+    res.json({ 
+      status: 'healthy', 
+      database: 'connected',
+      emailService: resend ? 'available' : 'unavailable'
+    });
   } catch (error) {
-    res.status(500).json({ status: 'unhealthy', database: 'disconnected', error: error.message });
+    res.status(500).json({ 
+      status: 'unhealthy', 
+      database: 'disconnected', 
+      error: error.message 
+    });
   }
 });
 
