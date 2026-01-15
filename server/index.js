@@ -206,7 +206,11 @@ app.post('/api/auth/request-otp', async (req, res) => {
     }
 
     const otp = generateOTP();
-    console.log(`🔑 Generated OTP for ${email || phone}: ${otp}`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`🔑 Generated OTP for ${email || phone}: ${otp}`);
+    } else {
+      console.log(`🔑 Generated OTP for ${email || phone}`);
+    }
     
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
     const identifier = email || phone;
@@ -228,7 +232,11 @@ app.post('/api/auth/request-otp', async (req, res) => {
         });
       } else {
         // Fallback: still return success but log the issue
-        console.log(`⚠️  Email failed, OTP for ${identifier}: ${otp}`);
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`⚠️  Email failed, OTP for ${identifier}: ${otp}`);
+        } else {
+          console.log(`⚠️  Email failed for ${identifier}`);
+        }
         const response = { 
           success: true, 
           message: 'OTP generated (email service unavailable)'
@@ -241,7 +249,11 @@ app.post('/api/auth/request-otp', async (req, res) => {
       }
     } else {
       // Phone OTP - log to console (SMS integration can be added later)
-      console.log(`📱 OTP for ${phone}: ${otp}`);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`📱 OTP for ${phone}: ${otp}`);
+      } else {
+        console.log(`📱 OTP requested for ${phone}`);
+      }
       const response = { 
         success: true, 
         message: 'OTP sent successfully'
@@ -864,8 +876,7 @@ app.get('/api/health', async (req, res) => {
     res.json({ 
       status: 'healthy', 
       database: 'connected',
-      emailService: resend ? 'configured' : 'not configured',
-      resendApiKey: process.env.RESEND_API_KEY ? 'present' : 'missing'
+      emailService: resend ? 'configured' : 'not configured'
     });
   } catch (error) {
     res.status(500).json({ 
