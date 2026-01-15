@@ -63,12 +63,14 @@ function generateSessionToken() {
 function maskIdentifier(identifier) {
   if (!identifier) return 'unknown';
   if (identifier.includes('@')) {
-    // Email: show first 2 chars and domain
+    // Email: show first 2 chars and domain (or less if email is short)
     const [local, domain] = identifier.split('@');
-    return `${local.substring(0, 2)}***@${domain}`;
+    const maskLength = Math.min(local.length, 2);
+    return `${local.substring(0, maskLength)}***@${domain}`;
   } else {
-    // Phone: show last 4 digits
-    return `***${identifier.slice(-4)}`;
+    // Phone: show last 4 digits (or less if phone is short)
+    const maskLength = Math.min(identifier.length, 4);
+    return `***${identifier.slice(-maskLength)}`;
   }
 }
 
@@ -252,7 +254,11 @@ app.post('/api/auth/request-otp', async (req, res) => {
     if (email) {
       console.log('📧 Attempting to send email via Resend...');
       const emailResult = await sendOTPEmail(email, otp);
-      console.log('📧 Email result:', emailResult);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('📧 Email result:', emailResult);
+      } else {
+        console.log(`📧 Email result: ${emailResult.success ? 'success' : 'failed'}`);
+      }
       
       if (emailResult.success) {
         res.json({ 
@@ -952,7 +958,7 @@ app.get('/api/health', async (req, res) => {
     res.json({ 
       status: 'healthy', 
       database: 'connected',
-      emailService: resend ? 'configured' : 'not configured'
+      emailService: resend ? 'available' : 'unavailable'
     });
   } catch (error) {
     res.status(500).json({ 
