@@ -6,7 +6,9 @@
  */
 
 // API base URL - can be configured via environment variable
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+// Always ensures /api prefix is present (handles trailing slashes)
+const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3001').replace(/\/$/, '');
+export const API_BASE_URL = baseUrl.replace(/\/api$/, '') + '/api';
 
 // Helper function to make API requests
 export async function apiRequest(
