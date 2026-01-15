@@ -196,7 +196,11 @@ const genderReverseMap = { 'Male': 'M', 'Female': 'F', 'Other': 'O' };
 // Request OTP
 app.post('/api/auth/request-otp', async (req, res) => {
   try {
-    console.log('📨 OTP request received:', { email: req.body.email, phone: req.body.phone });
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('📨 OTP request received:', { email: req.body.email, phone: req.body.phone });
+    } else {
+      console.log('📨 OTP request received');
+    }
     
     const { email, phone } = req.body;
     
@@ -266,7 +270,11 @@ app.post('/api/auth/request-otp', async (req, res) => {
     }
   } catch (error) {
     console.error('❌ Error in request-otp:', error);
-    res.status(500).json({ error: 'Failed to send OTP', details: error.message });
+    if (process.env.NODE_ENV !== 'production') {
+      res.status(500).json({ error: 'Failed to send OTP', details: error.message });
+    } else {
+      res.status(500).json({ error: 'Failed to send OTP' });
+    }
   }
 });
 
