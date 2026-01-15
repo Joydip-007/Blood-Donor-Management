@@ -59,10 +59,27 @@ function generateSessionToken() {
   return Math.random().toString(36).substring(2) + Date.now().toString(36);
 }
 
+// Mask identifier for production logs
+function maskIdentifier(identifier) {
+  if (!identifier) return 'unknown';
+  if (identifier.includes('@')) {
+    // Email: show first 2 chars and domain
+    const [local, domain] = identifier.split('@');
+    return `${local.substring(0, 2)}***@${domain}`;
+  } else {
+    // Phone: show last 4 digits
+    return `***${identifier.slice(-4)}`;
+  }
+}
+
 // Send OTP via email using Resend
 async function sendOTPEmail(email, otp) {
   if (!resend) {
-    console.log(`⚠️  Resend not configured. OTP for ${email}: ${otp}`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`⚠️  Resend not configured. OTP for ${email}: ${otp}`);
+    } else {
+      console.log(`⚠️  Resend not configured`);
+    }
     return { success: false, error: 'Email service not configured' };
   }
 
@@ -124,7 +141,11 @@ async function sendOTPEmail(email, otp) {
       return { success: false, error: error.message };
     }
 
-    console.log(`✅ OTP email sent to ${email} (ID: ${data.id})`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`✅ OTP email sent to ${email} (ID: ${data.id})`);
+    } else {
+      console.log(`✅ OTP email sent (ID: ${data.id})`);
+    }
     return { success: true, data };
   } catch (error) {
     console.error('Error sending email:', error);
@@ -213,7 +234,7 @@ app.post('/api/auth/request-otp', async (req, res) => {
     if (process.env.NODE_ENV !== 'production') {
       console.log(`🔑 Generated OTP for ${email || phone}: ${otp}`);
     } else {
-      console.log(`🔑 Generated OTP for ${email || phone}`);
+      console.log(`🔑 Generated OTP for ${maskIdentifier(email || phone)}`);
     }
     
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
@@ -221,7 +242,11 @@ app.post('/api/auth/request-otp', async (req, res) => {
 
     // Store OTP
     otpStore.set(identifier, { otp, expiresAt, email, phone });
-    console.log(`💾 OTP stored for ${identifier}, expires at ${expiresAt.toISOString()}`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`💾 OTP stored for ${identifier}, expires at ${expiresAt.toISOString()}`);
+    } else {
+      console.log(`💾 OTP stored, expires at ${expiresAt.toISOString()}`);
+    }
 
     // Send OTP via email if email provided
     if (email) {
@@ -239,7 +264,7 @@ app.post('/api/auth/request-otp', async (req, res) => {
         if (process.env.NODE_ENV !== 'production') {
           console.log(`⚠️  Email failed, OTP for ${identifier}: ${otp}`);
         } else {
-          console.log(`⚠️  Email failed for ${identifier}`);
+          console.log(`⚠️  Email failed for ${maskIdentifier(identifier)}`);
         }
         const response = { 
           success: true, 
@@ -256,7 +281,7 @@ app.post('/api/auth/request-otp', async (req, res) => {
       if (process.env.NODE_ENV !== 'production') {
         console.log(`📱 OTP for ${phone}: ${otp}`);
       } else {
-        console.log(`📱 OTP requested for ${phone}`);
+        console.log(`📱 OTP requested for ${maskIdentifier(phone)}`);
       }
       const response = { 
         success: true, 
