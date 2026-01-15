@@ -306,26 +306,57 @@ app.post('/api/auth/request-otp', async (req, res) => {
 // Verify OTP
 app.post('/api/auth/verify-otp', async (req, res) => {
   try {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('🔐 OTP verification request:', { email: req.body.email, phone: req.body.phone });
+    } else {
+      console.log('🔐 OTP verification request received');
+    }
+    
     const { email, phone, otp } = req.body;
     const identifier = email || phone;
+    
+    if (!identifier) {
+      console.log('❌ No identifier provided for verification');
+      return res.status(400).json({ error: 'Email or phone required' });
+    }
     
     const otpData = otpStore.get(identifier);
     
     if (!otpData) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`❌ No OTP found for ${identifier}`);
+      } else {
+        console.log(`❌ No OTP found for ${maskIdentifier(identifier)}`);
+      }
       return res.status(400).json({ error: 'Invalid or expired OTP' });
     }
     
     if (otpData.otp !== otp) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`❌ Invalid OTP for ${identifier}`);
+      } else {
+        console.log(`❌ Invalid OTP for ${maskIdentifier(identifier)}`);
+      }
       return res.status(400).json({ error: 'Invalid OTP' });
     }
     
     if (new Date(otpData.expiresAt) < new Date()) {
       otpStore.delete(identifier);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`❌ OTP expired for ${identifier}`);
+      } else {
+        console.log(`❌ OTP expired for ${maskIdentifier(identifier)}`);
+      }
       return res.status(400).json({ error: 'OTP expired' });
     }
 
     // Clean up OTP
     otpStore.delete(identifier);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`✅ OTP verified successfully for ${identifier}`);
+    } else {
+      console.log(`✅ OTP verified successfully for ${maskIdentifier(identifier)}`);
+    }
 
     // Check if donor exists
     let donorId = null;
@@ -336,6 +367,13 @@ app.post('/api/auth/verify-otp', async (req, res) => {
       );
       if (donors.length > 0) {
         donorId = donors[0].donor_id;
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`👤 Found existing donor with ID: ${donorId}`);
+        } else {
+          console.log(`👤 Found existing donor`);
+        }
+      } else {
+        console.log(`👤 No existing donor found, new user`);
       }
     }
 
@@ -351,6 +389,7 @@ app.post('/api/auth/verify-otp', async (req, res) => {
     };
 
     sessions.set(sessionToken, userData);
+    console.log(`🎫 Session created`);
 
     res.json({ 
       success: true,
@@ -358,8 +397,12 @@ app.post('/api/auth/verify-otp', async (req, res) => {
       user: userData
     });
   } catch (error) {
-    console.error('Error verifying OTP:', error);
-    res.status(500).json({ error: 'Failed to verify OTP' });
+    console.error('❌ Error in verify-otp:', error);
+    if (process.env.NODE_ENV !== 'production') {
+      res.status(500).json({ error: 'Failed to verify OTP', details: error.message });
+    } else {
+      res.status(500).json({ error: 'Failed to verify OTP' });
+    }
   }
 });
 
