@@ -47,6 +47,11 @@ const pool = mysql.createPool({
 const sessions = new Map();
 const otpStore = new Map();
 
+// Configuration constants
+const OTP_EXPIRATION_MS = 10 * 60 * 1000; // 10 minutes
+const EMAIL_MASK_LENGTH = 2; // Show first 2 chars of email local part
+const PHONE_MASK_LENGTH = 4; // Show last 4 digits of phone number
+
 // Helper Functions
 
 // Generate 6-digit OTP
@@ -63,13 +68,13 @@ function generateSessionToken() {
 function maskIdentifier(identifier) {
   if (!identifier) return 'unknown';
   if (identifier.includes('@')) {
-    // Email: show first 2 chars and domain (or less if email is short)
+    // Email: show first chars and domain (or less if email is short)
     const [local, domain] = identifier.split('@');
-    const maskLength = Math.min(local.length, 2);
+    const maskLength = Math.min(local.length, EMAIL_MASK_LENGTH);
     return `${local.substring(0, maskLength)}***@${domain}`;
   } else {
-    // Phone: show last 4 digits (or less if phone is short)
-    const maskLength = Math.min(identifier.length, 4);
+    // Phone: show last digits (or less if phone is short)
+    const maskLength = Math.min(identifier.length, PHONE_MASK_LENGTH);
     return `***${identifier.slice(-maskLength)}`;
   }
 }
@@ -239,7 +244,7 @@ app.post('/api/auth/request-otp', async (req, res) => {
       console.log(`🔑 Generated OTP for ${maskIdentifier(email || phone)}`);
     }
     
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const expiresAt = new Date(Date.now() + OTP_EXPIRATION_MS);
     const identifier = email || phone;
 
     // Store OTP
