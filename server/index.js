@@ -196,22 +196,30 @@ const genderReverseMap = { 'Male': 'M', 'Female': 'F', 'Other': 'O' };
 // Request OTP
 app.post('/api/auth/request-otp', async (req, res) => {
   try {
+    console.log('📨 OTP request received:', { email: req.body.email, phone: req.body.phone });
+    
     const { email, phone } = req.body;
     
     if (!email && !phone) {
+      console.log('❌ No email or phone provided');
       return res.status(400).json({ error: 'Email or phone required' });
     }
 
     const otp = generateOTP();
+    console.log(`🔑 Generated OTP for ${email || phone}: ${otp}`);
+    
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
     const identifier = email || phone;
 
     // Store OTP
     otpStore.set(identifier, { otp, expiresAt, email, phone });
+    console.log(`💾 OTP stored for ${identifier}, expires at ${expiresAt.toISOString()}`);
 
     // Send OTP via email if email provided
     if (email) {
+      console.log('📧 Attempting to send email via Resend...');
       const emailResult = await sendOTPEmail(email, otp);
+      console.log('📧 Email result:', emailResult);
       
       if (emailResult.success) {
         res.json({ 
@@ -245,8 +253,8 @@ app.post('/api/auth/request-otp', async (req, res) => {
       res.json(response);
     }
   } catch (error) {
-    console.error('Error requesting OTP:', error);
-    res.status(500).json({ error: 'Failed to send OTP' });
+    console.error('❌ Error in request-otp:', error);
+    res.status(500).json({ error: 'Failed to send OTP', details: error.message });
   }
 });
 
@@ -853,9 +861,18 @@ app.get('/api/statistics', async (req, res) => {
 app.get('/api/health', async (req, res) => {
   try {
     await pool.execute('SELECT 1');
-    res.json({ status: 'healthy', database: 'connected' });
+    res.json({ 
+      status: 'healthy', 
+      database: 'connected',
+      emailService: resend ? 'configured' : 'not configured',
+      resendApiKey: process.env.RESEND_API_KEY ? 'present' : 'missing'
+    });
   } catch (error) {
-    res.status(500).json({ status: 'unhealthy', database: 'disconnected', error: error.message });
+    res.status(500).json({ 
+      status: 'unhealthy', 
+      database: 'disconnected', 
+      error: error.message 
+    });
   }
 });
 
