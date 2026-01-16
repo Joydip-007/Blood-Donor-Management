@@ -8,18 +8,172 @@ import { EmergencyRequest } from './components/EmergencyRequest';
 import { DonorSearch } from './components/DonorSearch';
 import { Statistics } from './components/Statistics';
 
+import React, { useState } from 'react';
+import { Droplet } from 'lucide-react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { LoginSignup } from './components/Auth/LoginSignup';
+import { DonorRegistration } from './components/DonorRegistration';
+import { DonorProfile } from './components/DonorProfile';
+import { EmergencyRequest } from './components/EmergencyRequest';
+import { DonorSearch } from './components/DonorSearch';
+import { Statistics } from './components/Statistics';
+import { AdminDashboard } from './components/Admin/AdminDashboard';
+import { AdminAddDonor } from './components/Admin/AdminAddDonor';
+import { AdminDonorList } from './components/Admin/AdminDonorList';
+
 function AppContent() {
   const { isAuthenticated, logout, user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'register' | 'profile' | 'emergency' | 'search' | 'stats'>('register');
+  const [activeTab, setActiveTab] = useState<'register' | 'profile' | 'emergency' | 'search' | 'stats' | 'admin' | 'admin-add' | 'admin-list'>('register');
   const [hasProfile, setHasProfile] = useState(false);
 
+  // Not authenticated - show login
   if (!isAuthenticated) {
     return <LoginSignup />;
   }
 
+  // Admin user - show admin dashboard or admin tabs
+  if (user?.isAdmin) {
+    if (activeTab === 'admin-add') {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50">
+          <header className="bg-red-600 text-white shadow-lg sticky top-0 z-50">
+            <div className="container mx-auto px-4 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-white rounded-lg">
+                    <Droplet className="text-red-600" size={32} />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl font-bold">Blood Donor Management System</h1>
+                    <p className="text-red-100 text-sm">Admin Panel</p>
+                  </div>
+                </div>
+                <button
+                  onClick={logout}
+                  className="px-4 py-2 bg-red-700 hover:bg-red-800 rounded-lg transition-colors text-sm font-medium"
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+          </header>
+          <main className="container mx-auto px-4 py-8">
+            <AdminAddDonor 
+              onBack={() => setActiveTab('admin')} 
+              onSuccess={() => setActiveTab('admin-list')}
+            />
+          </main>
+        </div>
+      );
+    }
+
+    if (activeTab === 'admin-list') {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50">
+          <header className="bg-red-600 text-white shadow-lg sticky top-0 z-50">
+            <div className="container mx-auto px-4 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-white rounded-lg">
+                    <Droplet className="text-red-600" size={32} />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl font-bold">Blood Donor Management System</h1>
+                    <p className="text-red-100 text-sm">Admin Panel</p>
+                  </div>
+                </div>
+                <button
+                  onClick={logout}
+                  className="px-4 py-2 bg-red-700 hover:bg-red-800 rounded-lg transition-colors text-sm font-medium"
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+          </header>
+          <main className="container mx-auto px-4 py-8">
+            <AdminDonorList onBack={() => setActiveTab('admin')} />
+          </main>
+        </div>
+      );
+    }
+
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50">
+        <header className="bg-red-600 text-white shadow-lg sticky top-0 z-50">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white rounded-lg">
+                  <Droplet className="text-red-600" size={32} />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold">Blood Donor Management System</h1>
+                  <p className="text-red-100 text-sm">Admin Panel</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="text-right hidden md:block">
+                  <p className="text-sm text-red-100">Admin</p>
+                  <p className="font-medium">{user?.email}</p>
+                </div>
+                <button
+                  onClick={logout}
+                  className="px-4 py-2 bg-red-700 hover:bg-red-800 rounded-lg transition-colors text-sm font-medium"
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+          </div>
+        </header>
+        <main className="container mx-auto px-4 py-8">
+          <AdminDashboard onNavigate={(view) => setActiveTab(view === 'add' ? 'admin-add' : 'admin-list')} />
+        </main>
+      </div>
+    );
+  }
+
+  // New user (not registered) - show registration form
+  if (!user?.isRegistered) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50">
+        <header className="bg-red-600 text-white shadow-lg sticky top-0 z-50">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white rounded-lg">
+                  <Droplet className="text-red-600" size={32} />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold">Blood Donor Management System</h1>
+                  <p className="text-red-100 text-sm">Complete Your Registration</p>
+                </div>
+              </div>
+              <button
+                onClick={logout}
+                className="px-4 py-2 bg-red-700 hover:bg-red-800 rounded-lg transition-colors text-sm font-medium"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </header>
+        <main className="container mx-auto px-4 py-8">
+          <DonorRegistration onSuccess={() => {
+            setHasProfile(true);
+            setActiveTab('profile');
+            // Refresh user data to update isRegistered flag
+            window.location.reload();
+          }} />
+        </main>
+      </div>
+    );
+  }
+
+  // Existing registered user - show full dashboard
   const tabs = [
-    { id: 'register' as const, name: '📝 Register as Donor', show: !hasProfile },
-    { id: 'profile' as const, name: '👤 My Profile', show: hasProfile },
+    { id: 'profile' as const, name: '👤 My Profile', show: true },
     { id: 'emergency' as const, name: '🚨 Emergency Request', show: true },
     { id: 'search' as const, name: '🔍 Find Donors', show: true },
     { id: 'stats' as const, name: '📊 Statistics', show: true },
@@ -79,14 +233,7 @@ function AppContent() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        {activeTab === 'register' && !hasProfile && (
-          <DonorRegistration onSuccess={() => {
-            setHasProfile(true);
-            setActiveTab('profile');
-          }} />
-        )}
-        
-        {activeTab === 'profile' && hasProfile && (
+        {activeTab === 'profile' && (
           <DonorProfile />
         )}
         

@@ -219,6 +219,39 @@ async function getCompatibleDonorBloodGroups(receiverBgId) {
 const genderMap = { 'M': 'Male', 'F': 'Female', 'O': 'Other' };
 const genderReverseMap = { 'Male': 'M', 'Female': 'F', 'Other': 'O' };
 
+// Admin email
+const ADMIN_EMAIL = 'joydip.datta15@gmail.com';
+
+// Helper function to calculate age from date of birth
+function calculateAge(dateOfBirth) {
+  const today = new Date();
+  const birthDate = new Date(dateOfBirth);
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  
+  return age;
+}
+
+// Admin middleware
+function isAdmin(req, res, next) {
+  const token = req.headers.authorization?.split(' ')[1];
+  const session = sessions.get(token);
+  
+  if (!session) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  
+  if (session.email !== ADMIN_EMAIL) {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  
+  next();
+}
+
 // ==================== AUTH ROUTES ====================
 
 // Request OTP
@@ -371,6 +404,9 @@ app.post('/api/auth/verify-otp', async (req, res) => {
 
     // Check if donor exists
     let donorId = null;
+    let isRegistered = false;
+    const isAdmin = email === ADMIN_EMAIL;
+    
     if (email) {
       const [donors] = await pool.execute(
         'SELECT donor_id FROM DONOR WHERE email = ? AND is_active = TRUE',
@@ -378,6 +414,7 @@ app.post('/api/auth/verify-otp', async (req, res) => {
       );
       if (donors.length > 0) {
         donorId = donors[0].donor_id;
+        isRegistered = true;
         if (process.env.NODE_ENV !== 'production') {
           console.log(`👤 Found existing donor with ID: ${donorId}`);
         } else {
@@ -395,6 +432,8 @@ app.post('/api/auth/verify-otp', async (req, res) => {
       email,
       phone,
       donorId,
+      isRegistered,
+      isAdmin,
       createdAt: new Date().toISOString(),
       isActive: true
     };
@@ -405,7 +444,9 @@ app.post('/api/auth/verify-otp', async (req, res) => {
     res.json({ 
       success: true,
       token: sessionToken,
-      user: userData
+      user: userData,
+      isRegistered,
+      isAdmin
     });
   } catch (error) {
     console.error('❌ Error in verify-otp:', error);
@@ -429,10 +470,16 @@ app.post('/api/donors/register', async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { name, email, phone, alternatePhone, age, gender, bloodGroup, city, area, address, latitude, longitude } = req.body;
+    const { name, email, phone, alternatePhone, age, dateOfBirth, gender, bloodGroup, city, area, address, latitude, longitude } = req.body;
+
+    // Calculate age from dateOfBirth if provided, otherwise use age field
+    let finalAge = age;
+    if (dateOfBirth) {
+      finalAge = calculateAge(dateOfBirth);
+    }
 
     // Validate age (per ERD: CHECK (age >= 18))
-    if (age < 18) {
+    if (finalAge < 18) {
       return res.status(400).json({ error: 'Donor must be 18 or above' });
     }
 
@@ -467,7 +514,7 @@ app.post('/api/donors/register', async (req, res) => {
     const [result] = await pool.execute(
       `INSERT INTO DONOR (full_name, age, gender, email, blood_group, availability, last_donate, is_active, location_id) 
        VALUES (?, ?, ?, ?, ?, TRUE, NULL, TRUE, ?)`,
-      [name, age, genderReverseMap[gender] || gender, email, bloodGroupId, locationId]
+      [name, finalAge, genderReverseMap[gender] || gender, email, bloodGroupId, locationId]
     );
 
     const donorId = result.insertId;
@@ -486,8 +533,9 @@ app.post('/api/donors/register', async (req, res) => {
       );
     }
 
-    // Update session with donor ID
+    // Update session with donor ID and registration status
     session.donorId = donorId;
+    session.isRegistered = true;
     sessions.set(token, session);
 
     const donor = {
@@ -496,7 +544,8 @@ app.post('/api/donors/register', async (req, res) => {
       email,
       phone,
       alternatePhone,
-      age,
+      age: finalAge,
+      dateOfBirth: dateOfBirth || null,
       gender,
       bloodGroup,
       city,
@@ -953,6 +1002,169 @@ app.get('/api/statistics', async (req, res) => {
   } catch (error) {
     console.error('Error fetching statistics:', error);
     res.status(500).json({ error: 'Failed to fetch statistics' });
+  }
+});
+
+// ==================== ADMIN ROUTES ====================
+
+// Admin: Add donor manually
+app.post('/api/admin/donors/add', isAdmin, async (req, res) => {
+  try {
+    const { name, email, phone, alternatePhone, age, dateOfBirth, gender, bloodGroup, city, area, address, latitude, longitude } = req.body;
+
+    // Calculate age from dateOfBirth if provided, otherwise use age field
+    let finalAge = age;
+    if (dateOfBirth) {
+      finalAge = calculateAge(dateOfBirth);
+    }
+
+    // Validate age (per ERD: CHECK (age >= 18))
+    if (finalAge < 18) {
+      return res.status(400).json({ error: 'Donor must be 18 or above' });
+    }
+
+    // Check for duplicate email (per ERD: email is UNIQUE)
+    const [existingEmail] = await pool.execute(
+      'SELECT donor_id FROM DONOR WHERE email = ? AND is_active = TRUE',
+      [email]
+    );
+    if (existingEmail.length > 0) {
+      return res.status(400).json({ error: 'Email already registered' });
+    }
+
+    // Check for duplicate phone
+    const [existingPhone] = await pool.execute(
+      'SELECT cn.donor_id FROM CONTACT_NUMBER cn JOIN DONOR d ON cn.donor_id = d.donor_id WHERE cn.phone_number = ? AND d.is_active = TRUE',
+      [phone]
+    );
+    if (existingPhone.length > 0) {
+      return res.status(400).json({ error: 'Phone number already registered' });
+    }
+
+    // Get blood group ID
+    const bloodGroupId = await getBloodGroupId(bloodGroup);
+    if (!bloodGroupId) {
+      return res.status(400).json({ error: 'Invalid blood group' });
+    }
+
+    // Get or create location
+    const locationId = await getOrCreateLocation(city, area, latitude, longitude);
+
+    // Insert donor (per ERD: DONOR table)
+    const [result] = await pool.execute(
+      `INSERT INTO DONOR (full_name, age, gender, email, blood_group, availability, last_donate, is_active, location_id) 
+       VALUES (?, ?, ?, ?, ?, TRUE, NULL, TRUE, ?)`,
+      [name, finalAge, genderReverseMap[gender] || gender, email, bloodGroupId, locationId]
+    );
+
+    const donorId = result.insertId;
+
+    // Insert primary phone (per ERD: CONTACT_NUMBER table, 1:N relationship)
+    await pool.execute(
+      'INSERT INTO CONTACT_NUMBER (donor_id, phone_number) VALUES (?, ?)',
+      [donorId, phone]
+    );
+
+    // Insert alternate phone if provided
+    if (alternatePhone) {
+      await pool.execute(
+        'INSERT INTO CONTACT_NUMBER (donor_id, phone_number) VALUES (?, ?)',
+        [donorId, alternatePhone]
+      );
+    }
+
+    const donor = {
+      id: donorId.toString(),
+      name,
+      email,
+      phone,
+      alternatePhone,
+      age: finalAge,
+      dateOfBirth: dateOfBirth || null,
+      gender,
+      bloodGroup,
+      city,
+      area,
+      address: address || '',
+      latitude,
+      longitude,
+      isAvailable: true,
+      isDeleted: false,
+      lastDonationDate: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    res.json({ success: true, donor });
+  } catch (error) {
+    console.error('Error adding donor:', error);
+    res.status(500).json({ error: 'Failed to add donor' });
+  }
+});
+
+// Admin: Get all donors
+app.get('/api/admin/donors/all', isAdmin, async (req, res) => {
+  try {
+    // Query all donors with location and blood group join
+    const [donorsData] = await pool.execute(
+      `SELECT d.*, l.city, l.area, l.latitude, l.longitude, bg.bg_name, bg.rh_factor
+       FROM DONOR d 
+       LEFT JOIN LOCATION l ON d.location_id = l.location_id
+       LEFT JOIN BLOOD_GROUP bg ON d.blood_group = bg.bg_id
+       ORDER BY d.donor_id DESC`
+    );
+
+    // Get contact numbers for all donors
+    const donorIds = donorsData.map(d => d.donor_id);
+    let contactsByDonor = {};
+    
+    if (donorIds.length > 0) {
+      const [contacts] = await pool.execute(
+        `SELECT donor_id, phone_number FROM CONTACT_NUMBER WHERE donor_id IN (${donorIds.map(() => '?').join(',')})`,
+        donorIds
+      );
+      contacts.forEach(c => {
+        if (!contactsByDonor[c.donor_id]) contactsByDonor[c.donor_id] = [];
+        contactsByDonor[c.donor_id].push(c.phone_number);
+      });
+    }
+
+    const donors = donorsData.map(d => {
+      // Calculate availability
+      let availability = d.availability;
+      if (d.last_donate) {
+        const daysSince = Math.floor((Date.now() - new Date(d.last_donate).getTime()) / (1000 * 60 * 60 * 24));
+        availability = daysSince >= 90;
+      }
+
+      const phones = contactsByDonor[d.donor_id] || [];
+
+      return {
+        id: d.donor_id.toString(),
+        name: d.full_name,
+        email: d.email,
+        phone: phones[0] || '',
+        alternatePhone: phones[1] || '',
+        age: d.age,
+        gender: genderMap[d.gender] || d.gender,
+        bloodGroup: `${d.bg_name}${d.rh_factor}`,
+        city: d.city || '',
+        area: d.area || '',
+        address: '',
+        latitude: d.latitude,
+        longitude: d.longitude,
+        isAvailable: availability,
+        isDeleted: !d.is_active,
+        lastDonationDate: d.last_donate,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+    });
+
+    res.json({ donors, total: donors.length });
+  } catch (error) {
+    console.error('Error fetching all donors:', error);
+    res.status(500).json({ error: 'Failed to fetch donors' });
   }
 });
 

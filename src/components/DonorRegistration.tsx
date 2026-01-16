@@ -19,6 +19,7 @@ export function DonorRegistration({ onSuccess }: Props) {
     phone: '',
     alternatePhone: '',
     age: '',
+    dateOfBirth: '',
     gender: 'Male',
     bloodGroup: 'O+' as BloodGroup,
     city: '',
@@ -32,7 +33,25 @@ export function DonorRegistration({ onSuccess }: Props) {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      const updated = { ...prev, [name]: value };
+      
+      // Auto-calculate age when date of birth changes
+      if (name === 'dateOfBirth' && value) {
+        const today = new Date();
+        const birthDate = new Date(value);
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+        
+        updated.age = age.toString();
+      }
+      
+      return updated;
+    });
   };
 
   const validateForm = () => {
@@ -97,6 +116,7 @@ export function DonorRegistration({ onSuccess }: Props) {
           body: JSON.stringify({
             ...formData,
             age: parseInt(formData.age),
+            dateOfBirth: formData.dateOfBirth || undefined,
             latitude: formData.latitude ? parseFloat(formData.latitude) : undefined,
             longitude: formData.longitude ? parseFloat(formData.longitude) : undefined,
           }),
@@ -171,8 +191,25 @@ export function DonorRegistration({ onSuccess }: Props) {
             </div>
 
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                <Calendar size={16} className="text-red-600" />
+                Date of Birth *
+              </label>
+              <input
+                type="date"
+                name="dateOfBirth"
+                value={formData.dateOfBirth}
+                onChange={handleChange}
+                max={new Date().toISOString().split('T')[0]}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">Age will be calculated automatically</p>
+            </div>
+
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Age *
+                Age (Auto-calculated)
               </label>
               <input
                 type="number"
@@ -181,8 +218,9 @@ export function DonorRegistration({ onSuccess }: Props) {
                 onChange={handleChange}
                 min="18"
                 max="65"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-gray-50"
                 required
+                readOnly={!!formData.dateOfBirth}
               />
               <p className="text-xs text-gray-500 mt-1">Must be between 18-65 years</p>
             </div>
