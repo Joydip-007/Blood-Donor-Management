@@ -24,7 +24,6 @@ export function EmergencyRequest() {
   });
 
   const bloodGroups: BloodGroup[] = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-  const cities = ['Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Chennai', 'Kolkata', 'Pune', 'Ahmedabad'];
 
   const compatibilityInfo: Record<BloodGroup, string> = {
     'A+': 'Can receive from: A+, A-, O+, O-',
@@ -328,17 +327,16 @@ export function EmergencyRequest() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   City *
                 </label>
-                <select
+                <input
+                  type="text"
                   value={formData.city}
                   onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                  placeholder="e.g., Dhaka, Chittagong, Sylhet"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                   required
-                >
-                  <option value="">Select City</option>
-                  {cities.map(city => (
-                    <option key={city} value={city}>{city}</option>
-                  ))}
-                </select>
+                  minLength={2}
+                  maxLength={50}
+                />
               </div>
 
               <div className="md:col-span-2">
@@ -349,9 +347,11 @@ export function EmergencyRequest() {
                   type="text"
                   value={formData.area}
                   onChange={(e) => setFormData({ ...formData, area: e.target.value })}
-                  placeholder="e.g., Koramangala, Whitefield"
+                  placeholder="e.g., Dhanmondi, Gulshan, Mirpur, Banani"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                   required
+                  minLength={2}
+                  maxLength={100}
                 />
               </div>
             </div>
