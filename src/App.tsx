@@ -7,16 +7,6 @@ import { DonorProfile } from './components/DonorProfile';
 import { EmergencyRequest } from './components/EmergencyRequest';
 import { DonorSearch } from './components/DonorSearch';
 import { Statistics } from './components/Statistics';
-
-import React, { useState } from 'react';
-import { Droplet } from 'lucide-react';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { LoginSignup } from './components/Auth/LoginSignup';
-import { DonorRegistration } from './components/DonorRegistration';
-import { DonorProfile } from './components/DonorProfile';
-import { EmergencyRequest } from './components/EmergencyRequest';
-import { DonorSearch } from './components/DonorSearch';
-import { Statistics } from './components/Statistics';
 import { AdminDashboard } from './components/Admin/AdminDashboard';
 import { AdminAddDonor } from './components/Admin/AdminAddDonor';
 import { AdminDonorList } from './components/Admin/AdminDonorList';
