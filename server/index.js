@@ -219,8 +219,8 @@ async function getCompatibleDonorBloodGroups(receiverBgId) {
 const genderMap = { 'M': 'Male', 'F': 'Female', 'O': 'Other' };
 const genderReverseMap = { 'Male': 'M', 'Female': 'F', 'Other': 'O' };
 
-// Admin email
-const ADMIN_EMAIL = 'joydip.datta15@gmail.com';
+// Admin email - can be configured via environment variable
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'joydip.datta15@gmail.com';
 
 // Helper function to calculate age from date of birth
 function calculateAge(dateOfBirth) {

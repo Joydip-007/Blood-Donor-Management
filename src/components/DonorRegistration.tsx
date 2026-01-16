@@ -3,6 +3,7 @@ import { User, MapPin, Phone, Mail, Droplet, Calendar, AlertCircle } from 'lucid
 import { useAuth } from '../contexts/AuthContext';
 import { API_BASE_URL } from '../utils/api';
 import { BloodGroup } from '../types';
+import { calculateAge } from '../utils/helpers';
 
 interface Props {
   onSuccess: () => void;
@@ -38,16 +39,7 @@ export function DonorRegistration({ onSuccess }: Props) {
       
       // Auto-calculate age when date of birth changes
       if (name === 'dateOfBirth' && value) {
-        const today = new Date();
-        const birthDate = new Date(value);
-        let age = today.getFullYear() - birthDate.getFullYear();
-        const monthDiff = today.getMonth() - birthDate.getMonth();
-        
-        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-          age--;
-        }
-        
-        updated.age = age.toString();
+        updated.age = calculateAge(value).toString();
       }
       
       return updated;

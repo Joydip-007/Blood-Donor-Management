@@ -12,7 +12,7 @@ import { AdminAddDonor } from './components/Admin/AdminAddDonor';
 import { AdminDonorList } from './components/Admin/AdminDonorList';
 
 function AppContent() {
-  const { isAuthenticated, logout, user } = useAuth();
+  const { isAuthenticated, logout, user, updateUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'register' | 'profile' | 'emergency' | 'search' | 'stats' | 'admin' | 'admin-add' | 'admin-list'>('register');
   const [hasProfile, setHasProfile] = useState(false);
 
@@ -153,8 +153,8 @@ function AppContent() {
           <DonorRegistration onSuccess={() => {
             setHasProfile(true);
             setActiveTab('profile');
-            // Refresh user data to update isRegistered flag
-            window.location.reload();
+            // Update user registration status
+            updateUser({ isRegistered: true });
           }} />
         </main>
       </div>

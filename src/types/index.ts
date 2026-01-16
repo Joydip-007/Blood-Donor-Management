@@ -135,4 +135,5 @@ export interface AuthContextType {
   isAuthenticated: boolean;
   login: (email: string, phone: string, otp: string) => Promise<void>;
   logout: () => void;
+  updateUser: (updates: Partial<User>) => void;
 }
