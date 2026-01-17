@@ -58,6 +58,27 @@ export function LoginSignup() {
     try {
       // Use existing email login system
       await login(email, '', otp);
+      
+      // Get updated user data from localStorage
+      const userStr = localStorage.getItem('authUser');
+      if (userStr) {
+        const userData = JSON.parse(userStr);
+        
+        // Smart routing based on user type
+        if (userData.isAdmin) {
+          // Admin: Direct to admin dashboard (no registration needed)
+          console.log('Admin login detected, redirecting to admin dashboard');
+          window.location.href = '/';  // App will handle admin routing
+        } else if (userData.isRegistered) {
+          // Existing donor: Direct to main dashboard
+          console.log('Existing donor login, redirecting to dashboard');
+          window.location.href = '/';  // App will handle donor routing
+        } else {
+          // New user: Must complete registration
+          console.log('New user, registration required');
+          window.location.href = '/';  // App will handle registration routing
+        }
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
