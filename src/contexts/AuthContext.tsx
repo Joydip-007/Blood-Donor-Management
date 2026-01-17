@@ -37,11 +37,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const data = await response.json();
+    const userData = {
+      ...data.user,
+      isRegistered: data.isRegistered || false,
+      isAdmin: data.isAdmin || false
+    };
+    
     setToken(data.token);
-    setUser(data.user);
+    setUser(userData);
     
     localStorage.setItem('authToken', data.token);
-    localStorage.setItem('authUser', JSON.stringify(data.user));
+    localStorage.setItem('authUser', JSON.stringify(userData));
+  };
+
+  const updateUser = (updates: Partial<User>) => {
+    if (user) {
+      const updatedUser = { ...user, ...updates };
+      setUser(updatedUser);
+      localStorage.setItem('authUser', JSON.stringify(updatedUser));
+    }
   };
 
   const logout = () => {
@@ -59,6 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: !!token,
         login,
         logout,
+        updateUser,
       }}
     >
       {children}

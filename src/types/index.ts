@@ -10,6 +10,8 @@ export interface User {
   createdAt: string;
   isActive: boolean;
   donorId?: number; // Links to DONOR table
+  isRegistered?: boolean; // Whether user has completed donor registration
+  isAdmin?: boolean; // Whether user is admin
 }
 
 // Corresponds to LOCATION table in ERD
@@ -37,6 +39,7 @@ export interface Donor {
   phone: string;
   alternatePhone?: string;
   age: number;
+  dateOfBirth?: string | null; // Date of birth for automatic age calculation
   gender: 'Male' | 'Female' | 'Other';
   bloodGroup: BloodGroup;
   city: string;
@@ -132,4 +135,5 @@ export interface AuthContextType {
   isAuthenticated: boolean;
   login: (email: string, phone: string, otp: string) => Promise<void>;
   logout: () => void;
+  updateUser: (updates: Partial<User>) => void;
 }
