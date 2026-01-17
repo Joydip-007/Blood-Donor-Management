@@ -65,6 +65,8 @@ export function LoginSignup() {
         const userData = JSON.parse(userStr);
         
         // Smart routing based on user type
+        // Note: All routes redirect to '/' as App.tsx handles internal routing
+        // based on user.isAdmin and user.isRegistered flags
         if (userData.isAdmin) {
           // Admin: Direct to admin dashboard (no registration needed)
           console.log('Admin login detected, redirecting to admin dashboard');

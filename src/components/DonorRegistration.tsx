@@ -32,7 +32,6 @@ export function DonorRegistration({ onSuccess }: Props) {
 
   // Auto-populate email from authenticated session
   useEffect(() => {
-    // Auto-populate email from authenticated user
     if (user?.email) {
       setFormData(prev => ({
         ...prev,
