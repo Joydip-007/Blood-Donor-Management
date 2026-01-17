@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, MapPin, Phone, Mail, Droplet, Calendar, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API_BASE_URL } from '../utils/api';
@@ -10,7 +10,7 @@ interface Props {
 }
 
 export function DonorRegistration({ onSuccess }: Props) {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -29,6 +29,16 @@ export function DonorRegistration({ onSuccess }: Props) {
     latitude: '',
     longitude: '',
   });
+
+  // Auto-populate email from authenticated session
+  useEffect(() => {
+    if (user?.email) {
+      setFormData(prev => ({
+        ...prev,
+        email: user.email
+      }));
+    }
+  }, [user]);
 
   const bloodGroups: BloodGroup[] = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
@@ -159,6 +169,16 @@ export function DonorRegistration({ onSuccess }: Props) {
         <p className="text-gray-600 mt-1">Complete your profile to become a registered blood donor</p>
       </div>
 
+      {/* Welcome Message */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <h3 className="font-semibold text-blue-900 mb-2">🎉 Welcome! Complete Your Registration</h3>
+        <p className="text-sm text-blue-800">
+          Your email has been verified and is locked for security. 
+          Please fill in the remaining information to complete your donor registration.
+          You can update your profile and donation information anytime after registration.
+        </p>
+      </div>
+
       {error && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
           <AlertCircle size={20} />
@@ -269,16 +289,19 @@ export function DonorRegistration({ onSuccess }: Props) {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
                 <Mail size={16} />
-                Email *
+                📧 Email * <span className="text-xs text-gray-500">(from your login)</span>
               </label>
               <input
                 type="email"
                 name="email"
                 value={formData.email}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                readOnly
+                className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg cursor-not-allowed focus:outline-none"
                 required
               />
+              <p className="text-xs text-gray-500 mt-1">
+                🔒 Email is locked to your verified login email for security
+              </p>
             </div>
 
             <div>

@@ -20,6 +20,7 @@ export function DonorProfile() {
     address: '',
     latitude: '',
     longitude: '',
+    lastDonationDate: '',
   });
 
   useEffect(() => {
@@ -54,6 +55,7 @@ export function DonorProfile() {
         address: data.donor.address || '',
         latitude: data.donor.latitude?.toString() || '',
         longitude: data.donor.longitude?.toString() || '',
+        lastDonationDate: data.donor.lastDonationDate ? new Date(data.donor.lastDonationDate).toISOString().split('T')[0] : '',
       });
     } catch (err: any) {
       setError(err.message);
@@ -80,6 +82,7 @@ export function DonorProfile() {
             ...editForm,
             latitude: editForm.latitude ? parseFloat(editForm.latitude) : undefined,
             longitude: editForm.longitude ? parseFloat(editForm.longitude) : undefined,
+            lastDonationDate: editForm.lastDonationDate || undefined,
           }),
         }
       );
@@ -226,16 +229,26 @@ export function DonorProfile() {
       <div className="bg-white rounded-lg shadow-md p-6">
         <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
           <Calendar className="text-red-600" size={20} />
-          Donation Availability
+          Donation Availability {editing && '(Editable)'}
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-600 mb-1">Last Donation</p>
-            <p className="text-lg font-semibold">
-              {donor.lastDonationDate
-                ? new Date(donor.lastDonationDate).toLocaleDateString()
-                : 'No previous donation'}
-            </p>
+            <p className="text-sm text-gray-600 mb-1">Last Donation Date</p>
+            {editing ? (
+              <input
+                type="date"
+                value={editForm.lastDonationDate}
+                onChange={(e) => setEditForm({ ...editForm, lastDonationDate: e.target.value })}
+                max={new Date().toISOString().split('T')[0]}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+              />
+            ) : (
+              <p className="text-lg font-semibold">
+                {donor.lastDonationDate
+                  ? new Date(donor.lastDonationDate).toLocaleDateString()
+                  : 'No previous donation'}
+              </p>
+            )}
           </div>
           <div className="p-4 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-600 mb-1">Days Since Last Donation</p>
@@ -246,7 +259,7 @@ export function DonorProfile() {
         </div>
         <div className="mt-4 p-4 bg-blue-50 rounded-lg">
           <p className="text-sm text-blue-900">
-            <strong>Note:</strong> Donors can donate blood every 90 days. Your availability status is automatically updated based on your last donation date.
+            <strong>ℹ️ Note:</strong> You can donate blood every 90 days. {editing ? 'Update your last donation date to help us track your availability.' : 'Your availability status is automatically updated based on your last donation date.'}
           </p>
         </div>
       </div>
@@ -290,8 +303,9 @@ export function DonorProfile() {
             <div className="flex items-center gap-3">
               <Mail size={18} className="text-gray-400" />
               <div>
-                <p className="text-sm text-gray-600">Email</p>
+                <p className="text-sm text-gray-600">Email 🔒</p>
                 <p className="font-medium">{donor.email}</p>
+                <p className="text-xs text-gray-500">Cannot be changed (verified login email)</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -313,6 +327,16 @@ export function DonorProfile() {
           </div>
         ) : (
           <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email 🔒</label>
+              <input
+                type="email"
+                value={donor.email}
+                readOnly
+                className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg cursor-not-allowed focus:outline-none"
+              />
+              <p className="text-xs text-gray-500 mt-1">Email cannot be changed (verified login email)</p>
+            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Primary Phone</label>
               <input

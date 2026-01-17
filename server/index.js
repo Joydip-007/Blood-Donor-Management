@@ -405,9 +405,12 @@ app.post('/api/auth/verify-otp', async (req, res) => {
     // Check if donor exists
     let donorId = null;
     let isRegistered = false;
+    
+    // Check if admin
     const isAdmin = email === ADMIN_EMAIL;
     
-    if (email) {
+    if (email && !isAdmin) {
+      // Only check donor DB for non-admin users
       const [donors] = await pool.execute(
         'SELECT donor_id FROM DONOR WHERE email = ? AND is_active = TRUE',
         [email]
@@ -422,6 +425,16 @@ app.post('/api/auth/verify-otp', async (req, res) => {
         }
       } else {
         console.log(`👤 No existing donor found, new user`);
+      }
+    }
+    
+    // Admin is always considered "registered" (bypasses registration requirement)
+    if (isAdmin) {
+      isRegistered = true;
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`👑 Admin user authenticated: ${email}`);
+      } else {
+        console.log(`👑 Admin user authenticated`);
       }
     }
 
