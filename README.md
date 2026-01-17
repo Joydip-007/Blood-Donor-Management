@@ -84,7 +84,7 @@ The system follows the ERD structure with the following tables:
 
 2. (Optional) Configure API URL in `.env`:
    ```
-   VITE_API_URL=http://localhost:3001/api
+   VITE_API_URL=http://localhost:3001
    ```
 
 3. Start the development server:
