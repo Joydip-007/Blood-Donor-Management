@@ -1,69 +1,256 @@
-import React from 'react';
-import { Users, UserPlus, BarChart, Shield } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Users, UserPlus, BarChart, Shield, Edit, Settings, Activity, RefreshCcw, Download, CheckCircle } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { API_BASE_URL } from '../../utils/api';
 
 interface Props {
-  onNavigate: (view: 'add' | 'list') => void;
+  onNavigate: (view: 'add' | 'list' | 'edit' | 'stats' | 'settings' | 'inactive') => void;
 }
 
 export function AdminDashboard({ onNavigate }: Props) {
+  const { token } = useAuth();
+  const [stats, setStats] = useState({
+    total: 0,
+    available: 0,
+    unavailable: 0,
+    inactive: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/donors/all`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const donors = data.donors || [];
+        setStats({
+          total: donors.filter((d: any) => !d.isDeleted).length,
+          available: donors.filter((d: any) => !d.isDeleted && d.isAvailable).length,
+          unavailable: donors.filter((d: any) => !d.isDeleted && !d.isAvailable).length,
+          inactive: donors.filter((d: any) => d.isDeleted).length
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExportAll = () => {
+    // TODO: Implement export functionality
+    alert('Export functionality will be implemented in a future update');
+  };
+
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto space-y-6">
       <div className="bg-white rounded-lg shadow-lg p-8">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-3 bg-red-100 rounded-full">
-            <Shield className="text-red-600" size={32} />
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-red-100 rounded-full">
+              <Shield className="text-red-600" size={32} />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+              <p className="text-gray-600 mt-1">Comprehensive donor management and system controls</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-            <p className="text-gray-600 mt-1">Manage blood donors and system settings</p>
+          <div className="flex gap-2">
+            <button
+              onClick={fetchStats}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            >
+              <RefreshCcw size={18} />
+              Refresh Data
+            </button>
+            <button
+              onClick={handleExportAll}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+            >
+              <Download size={18} />
+              Export All
+            </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-          {/* Add Donor Card */}
+        {/* Quick Stats Row */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+            <p className="text-gray-600 text-sm font-medium">Total Donors</p>
+            <p className="text-3xl font-bold text-blue-600 mt-1">
+              {loading ? '...' : stats.total}
+            </p>
+          </div>
+          <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+            <p className="text-gray-600 text-sm font-medium">Available</p>
+            <p className="text-3xl font-bold text-green-600 mt-1">
+              {loading ? '...' : stats.available}
+            </p>
+          </div>
+          <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
+            <p className="text-gray-600 text-sm font-medium">Unavailable</p>
+            <p className="text-3xl font-bold text-yellow-600 mt-1">
+              {loading ? '...' : stats.unavailable}
+            </p>
+          </div>
+          <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+            <p className="text-gray-600 text-sm font-medium">Inactive</p>
+            <p className="text-3xl font-bold text-red-600 mt-1">
+              {loading ? '...' : stats.inactive}
+            </p>
+          </div>
+        </div>
+
+        {/* 6 Main Action Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
+          {/* Add New Donor */}
           <button
             onClick={() => onNavigate('add')}
             className="bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-lg p-6 text-left transition-all hover:shadow-lg border-2 border-blue-200"
           >
             <div className="flex items-center gap-4">
               <div className="p-4 bg-blue-600 rounded-full">
-                <UserPlus className="text-white" size={32} />
+                <UserPlus className="text-white" size={28} />
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">Add New Donor</h2>
-                <p className="text-gray-600 mt-1">Manually register a donor to the system</p>
+                <h2 className="text-lg font-semibold text-gray-900">Add New Donor</h2>
+                <p className="text-gray-600 text-sm mt-1">Register donors manually</p>
               </div>
             </div>
           </button>
 
-          {/* View All Donors Card */}
+          {/* Manage All Donors */}
           <button
             onClick={() => onNavigate('list')}
             className="bg-gradient-to-br from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 rounded-lg p-6 text-left transition-all hover:shadow-lg border-2 border-green-200"
           >
             <div className="flex items-center gap-4">
               <div className="p-4 bg-green-600 rounded-full">
-                <Users className="text-white" size={32} />
+                <Users className="text-white" size={28} />
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">View All Donors</h2>
-                <p className="text-gray-600 mt-1">Browse and manage all registered donors</p>
+                <h2 className="text-lg font-semibold text-gray-900">Manage All Donors</h2>
+                <p className="text-gray-600 text-sm mt-1">View and manage profiles</p>
+              </div>
+            </div>
+          </button>
+
+          {/* Edit Donor Profiles */}
+          <button
+            onClick={() => onNavigate('edit')}
+            className="bg-gradient-to-br from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 rounded-lg p-6 text-left transition-all hover:shadow-lg border-2 border-purple-200"
+          >
+            <div className="flex items-center gap-4">
+              <div className="p-4 bg-purple-600 rounded-full">
+                <Edit className="text-white" size={28} />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Edit Donor Profiles</h2>
+                <p className="text-gray-600 text-sm mt-1">Quick profile editing</p>
+              </div>
+            </div>
+          </button>
+
+          {/* Statistics & Reports */}
+          <button
+            onClick={() => onNavigate('stats')}
+            className="bg-gradient-to-br from-orange-50 to-orange-100 hover:from-orange-100 hover:to-orange-200 rounded-lg p-6 text-left transition-all hover:shadow-lg border-2 border-orange-200"
+          >
+            <div className="flex items-center gap-4">
+              <div className="p-4 bg-orange-600 rounded-full">
+                <BarChart size={28} className="text-white" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Statistics & Reports</h2>
+                <p className="text-gray-600 text-sm mt-1">View detailed analytics</p>
+              </div>
+            </div>
+          </button>
+
+          {/* Inactive Donors */}
+          <button
+            onClick={() => onNavigate('inactive')}
+            className="bg-gradient-to-br from-red-50 to-red-100 hover:from-red-100 hover:to-red-200 rounded-lg p-6 text-left transition-all hover:shadow-lg border-2 border-red-200"
+          >
+            <div className="flex items-center gap-4">
+              <div className="p-4 bg-red-600 rounded-full">
+                <Activity className="text-white" size={28} />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Inactive Donors</h2>
+                <p className="text-gray-600 text-sm mt-1">Manage deactivated accounts</p>
+              </div>
+            </div>
+          </button>
+
+          {/* System Settings */}
+          <button
+            onClick={() => onNavigate('settings')}
+            className="bg-gradient-to-br from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 rounded-lg p-6 text-left transition-all hover:shadow-lg border-2 border-gray-200"
+          >
+            <div className="flex items-center gap-4">
+              <div className="p-4 bg-gray-600 rounded-full">
+                <Settings className="text-white" size={28} />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">System Settings</h2>
+                <p className="text-gray-600 text-sm mt-1">Configure preferences</p>
               </div>
             </div>
           </button>
         </div>
 
-        <div className="mt-8 p-6 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <h3 className="font-semibold text-yellow-900 mb-2 flex items-center gap-2">
-            <Shield size={20} />
-            Admin Privileges
+        {/* Admin Privileges Section */}
+        <div className="mt-8 p-6 bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-300 rounded-lg">
+          <h3 className="font-semibold text-yellow-900 mb-3 flex items-center gap-2 text-lg">
+            <Shield size={24} />
+            Admin Privileges & Capabilities
           </h3>
-          <ul className="text-sm text-yellow-800 space-y-1">
-            <li>✓ Add donors manually without OTP verification</li>
-            <li>✓ View complete list of all registered donors</li>
-            <li>✓ Access detailed donor information and statistics</li>
-            <li>✓ Manage donor availability and contact details</li>
-          </ul>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <div className="flex items-center gap-2 text-sm text-yellow-800">
+              <CheckCircle size={16} className="text-green-600" />
+              Add donors manually without OTP verification
+            </div>
+            <div className="flex items-center gap-2 text-sm text-yellow-800">
+              <CheckCircle size={16} className="text-green-600" />
+              View complete list of all registered donors
+            </div>
+            <div className="flex items-center gap-2 text-sm text-yellow-800">
+              <CheckCircle size={16} className="text-green-600" />
+              Edit and update donor profile information
+            </div>
+            <div className="flex items-center gap-2 text-sm text-yellow-800">
+              <CheckCircle size={16} className="text-green-600" />
+              Change donor blood group and personal details
+            </div>
+            <div className="flex items-center gap-2 text-sm text-yellow-800">
+              <CheckCircle size={16} className="text-green-600" />
+              Manage donor availability status
+            </div>
+            <div className="flex items-center gap-2 text-sm text-yellow-800">
+              <CheckCircle size={16} className="text-green-600" />
+              Activate/deactivate donor accounts
+            </div>
+            <div className="flex items-center gap-2 text-sm text-yellow-800">
+              <CheckCircle size={16} className="text-green-600" />
+              Access detailed statistics and reports
+            </div>
+            <div className="flex items-center gap-2 text-sm text-yellow-800">
+              <CheckCircle size={16} className="text-green-600" />
+              Export donor data and generate reports
+            </div>
+          </div>
         </div>
       </div>
     </div>
