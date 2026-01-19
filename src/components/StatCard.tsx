@@ -25,8 +25,8 @@ export function StatCard({ title, value, icon: Icon, trend, color }: StatCardPro
             </p>
           )}
         </div>
-        <div className="ml-4 md:ml-6 p-3 md:p-4 rounded-full" style={{ backgroundColor: `${color}20` }}>
-          <Icon size={32} className="md:w-10 md:h-10" style={{ color }} />
+        <div className="ml-4 md:ml-6 p-3 md:p-4 rounded-full w-12 h-12 md:w-16 md:h-16 flex items-center justify-center" style={{ backgroundColor: `${color}20` }}>
+          <Icon className="w-8 h-8 md:w-10 md:h-10" style={{ color }} />
         </div>
       </div>
     </div>
