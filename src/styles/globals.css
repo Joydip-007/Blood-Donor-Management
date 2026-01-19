@@ -131,6 +131,20 @@
   }
 }
 
+/* Utility for black background (used in login page) */
+.bg-black {
+  background-color: #000000;
+}
+
+/* Ensure particle canvas fills container */
+.particle-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
 /**
  * Base typography. This is not applied to elements which have an ancestor with a Tailwind text class.
  */

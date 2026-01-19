@@ -2,7 +2,6 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Mail, Lock, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_BASE_URL } from '../../utils/api';
-import { cn } from '../../lib/utils';
 
 // ============== BLOOD PARTICLE ANIMATION ==============
 interface FluidParticlesProps {
@@ -219,131 +218,6 @@ function FluidParticles({
   return <canvas ref={canvasRef} className="absolute inset-0" />;
 }
 
-// ============== MORPHING TEXT ANIMATION ==============
-const morphTime = 1.5;
-const cooldownTime = 0.5;
-
-const useMorphingText = (texts: string[]) => {
-  const textIndexRef = useRef(0);
-  const morphRef = useRef(0);
-  const cooldownRef = useRef(0);
-  const timeRef = useRef(new Date());
-
-  const text1Ref = useRef<HTMLSpanElement>(null);
-  const text2Ref = useRef<HTMLSpanElement>(null);
-
-  const setStyles = useCallback(
-    (fraction: number) => {
-      const [current1, current2] = [text1Ref.current, text2Ref.current];
-      if (!current1 || !current2 || !texts || texts.length === 0) return;
-
-      current2.style.filter = `blur(${Math.min(8 / fraction - 8, 100)}px)`;
-      current2.style.opacity = `${Math.pow(fraction, 0.4) * 100}%`;
-
-      const invertedFraction = 1 - fraction;
-      current1.style.filter = `blur(${Math.min(8 / invertedFraction - 8, 100)}px)`;
-      current1.style.opacity = `${Math.pow(invertedFraction, 0.4) * 100}%`;
-
-      current1.textContent = texts[textIndexRef.current % texts.length];
-      current2.textContent = texts[(textIndexRef.current + 1) % texts.length];
-    },
-    [texts]
-  );
-
-  const doMorph = useCallback(() => {
-    morphRef.current -= cooldownRef.current;
-    cooldownRef.current = 0;
-
-    let fraction = morphRef.current / morphTime;
-
-    if (fraction > 1) {
-      cooldownRef.current = cooldownTime;
-      fraction = 1;
-    }
-
-    setStyles(fraction);
-
-    if (fraction === 1) {
-      textIndexRef.current++;
-    }
-  }, [setStyles]);
-
-  const doCooldown = useCallback(() => {
-    morphRef.current = 0;
-    const [current1, current2] = [text1Ref.current, text2Ref.current];
-    if (current1 && current2) {
-      current2.style.filter = "none";
-      current2.style.opacity = "100%";
-      current1.style.filter = "none";
-      current1.style.opacity = "0%";
-    }
-  }, []);
-
-  useEffect(() => {
-    let animationFrameId: number;
-
-    const animate = () => {
-      animationFrameId = requestAnimationFrame(animate);
-
-      const newTime = new Date();
-      const dt = (newTime.getTime() - timeRef.current.getTime()) / 1000;
-      timeRef.current = newTime;
-
-      cooldownRef.current -= dt;
-
-      if (cooldownRef.current <= 0) doMorph();
-      else doCooldown();
-    };
-
-    animate();
-    return () => {
-      cancelAnimationFrame(animationFrameId);
-    };
-  }, [doMorph, doCooldown]);
-
-  return { text1Ref, text2Ref };
-};
-
-interface MorphingTextProps {
-  className?: string;
-  texts: string[];
-}
-
-const SvgFilters: React.FC = () => (
-  <svg id="filters" className="hidden" preserveAspectRatio="xMidYMid slice">
-    <defs>
-      <filter id="threshold">
-        <feColorMatrix
-          in="SourceGraphic"
-          type="matrix"
-          values="1 0 0 0 0
-                  0 1 0 0 0
-                  0 0 1 0 0
-                  0 0 0 255 -140"
-        />
-      </filter>
-    </defs>
-  </svg>
-);
-
-const MorphingText: React.FC<MorphingTextProps> = ({ texts, className }) => {
-  const { text1Ref, text2Ref } = useMorphingText(texts);
-
-  return (
-    <div
-      className={cn(
-        "relative mx-auto h-16 w-full max-w-4xl text-center font-sans text-4xl font-bold leading-none md:h-20 md:text-5xl lg:text-6xl",
-        "[filter:url(#threshold)_blur(0.6px)]",
-        className
-      )}
-    >
-      <span className="absolute inset-x-0 top-0 m-auto inline-block w-full" ref={text1Ref} />
-      <span className="absolute inset-x-0 top-0 m-auto inline-block w-full" ref={text2Ref} />
-      <SvgFilters />
-    </div>
-  );
-};
-
 // ============== MAIN LOGIN COMPONENT ==============
 export function LoginSignup() {
   const [step, setStep] = useState<'input' | 'otp'>('input');
@@ -355,14 +229,6 @@ export function LoginSignup() {
   const [demoOtp, setDemoOtp] = useState('');
   
   const { login } = useAuth();
-
-  const morphingTexts = [
-    "Save Lives",
-    "Donate Blood",
-    "Be a Hero",
-    "Give Hope",
-    "Share Life"
-  ];
 
   const requestOTP = async () => {
     setError('');
@@ -434,9 +300,12 @@ export function LoginSignup() {
   };
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden flex items-center justify-center bg-black">
+    <div 
+      className="relative min-h-screen w-full overflow-hidden flex items-center justify-center bg-black"
+      style={{ backgroundColor: '#000000' }}
+    >
       {/* Blood Particle Background */}
-      <div className="absolute inset-0 z-0">
+      <div className="absolute inset-0 z-0" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
         <FluidParticles
           particleDensity={80}
           particleSize={1.5}
@@ -447,63 +316,103 @@ export function LoginSignup() {
         />
       </div>
 
-      {/* Morphing Text Overlay */}
-      <div className="absolute top-16 left-0 right-0 z-10 px-4">
-        <MorphingText texts={morphingTexts} className="text-red-600" />
-      </div>
-
       {/* Login Dialog */}
-      <div className="relative z-20 w-full max-w-md mx-4">
-        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8 border-2 border-red-600/20">
+      <div className="relative z-20 w-full max-w-md mx-4" style={{ position: 'relative', zIndex: 20 }}>
+        <div 
+          className="rounded-2xl shadow-2xl p-8 border-2"
+          style={{ 
+            backgroundColor: 'rgba(0, 0, 0, 0.85)', 
+            borderColor: '#8B0000',
+            backdropFilter: 'blur(10px)'
+          }}
+        >
           <div className="text-center mb-8">
-            <div className="inline-block p-3 bg-gradient-to-br from-red-600 to-red-800 rounded-full mb-4">
-              <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center">
-                <svg className="w-8 h-8 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-                </svg>
-              </div>
+            {/* Blood Drop Logo */}
+            <div 
+              className="inline-block p-4 rounded-full mb-4"
+              style={{ 
+                background: 'linear-gradient(135deg, #8B0000 0%, #DC143C 50%, #FF0000 100%)',
+                boxShadow: '0 0 30px rgba(220, 20, 60, 0.5)'
+              }}
+            >
+              <svg 
+                className="w-12 h-12" 
+                fill="#FF0000" 
+                viewBox="0 0 24 24"
+                style={{ filter: 'drop-shadow(0 0 8px rgba(255, 0, 0, 0.8))' }}
+              >
+                <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+              </svg>
             </div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-red-700 to-red-900 bg-clip-text text-transparent">
+            <h1 
+              className="text-3xl font-bold"
+              style={{ 
+                color: '#FF0000',
+                textShadow: '0 0 10px rgba(255, 0, 0, 0.5)'
+              }}
+            >
               Blood Donor Portal
             </h1>
-            <p className="text-gray-700 mt-2 font-medium">Secure OTP-based authentication</p>
+            <p className="mt-2 font-medium" style={{ color: '#DC143C' }}>Secure OTP-based authentication</p>
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border-2 border-red-300 rounded-lg flex items-center gap-2 text-red-800">
-              <AlertCircle size={20} />
-              <span className="text-sm font-medium">{error}</span>
+            <div 
+              className="mb-4 p-3 rounded-lg flex items-center gap-2"
+              style={{ backgroundColor: 'rgba(139, 0, 0, 0.3)', border: '1px solid #FF0000' }}
+            >
+              <AlertCircle size={20} style={{ color: '#FF0000' }} />
+              <span className="text-sm font-medium" style={{ color: '#FF6B6B' }}>{error}</span>
             </div>
           )}
 
           {success && (
-            <div className="mb-4 p-3 bg-green-50 border-2 border-green-300 rounded-lg flex items-center gap-2 text-green-800">
-              <CheckCircle size={20} />
-              <span className="text-sm font-medium">{success}</span>
+            <div 
+              className="mb-4 p-3 rounded-lg flex items-center gap-2"
+              style={{ backgroundColor: 'rgba(0, 100, 0, 0.3)', border: '1px solid #00FF00' }}
+            >
+              <CheckCircle size={20} style={{ color: '#00FF00' }} />
+              <span className="text-sm font-medium" style={{ color: '#90EE90' }}>{success}</span>
             </div>
           )}
 
           {demoOtp && (
-            <div className="mb-4 p-3 bg-blue-50 border-2 border-blue-300 rounded-lg">
-              <p className="text-sm text-blue-800 font-semibold">🔒 Demo OTP: {demoOtp}</p>
-              <p className="text-xs text-blue-700 mt-1">Use this code to verify (demo only)</p>
+            <div 
+              className="mb-4 p-3 rounded-lg"
+              style={{ backgroundColor: 'rgba(139, 0, 0, 0.2)', border: '1px solid #DC143C' }}
+            >
+              <p className="text-sm font-semibold" style={{ color: '#FF6B6B' }}>Demo OTP: {demoOtp}</p>
+              <p className="text-xs mt-1" style={{ color: '#DC143C' }}>Use this code to verify (demo only)</p>
             </div>
           )}
 
           {step === 'input' && (
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-800 mb-2">
+                <label 
+                  className="block text-sm font-semibold mb-2"
+                  style={{ color: '#DC143C' }}
+                >
                   Email Address
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-red-500" size={20} />
+                  <Mail 
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2" 
+                    size={20} 
+                    style={{ color: '#FF0000' }}
+                  />
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="your.email@example.com"
-                    className="w-full pl-10 pr-4 py-3 border-2 border-red-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 font-medium"
+                    className="w-full pl-10 pr-4 py-3 rounded-lg font-medium"
+                    style={{ 
+                      backgroundColor: 'rgba(139, 0, 0, 0.2)',
+                      border: '2px solid #8B0000',
+                      color: '#FFFFFF',
+                      outline: 'none'
+                    }}
                   />
                 </div>
               </div>
@@ -511,7 +420,16 @@ export function LoginSignup() {
               <button
                 onClick={requestOTP}
                 disabled={loading || !validateEmail(email)}
-                className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-3 rounded-lg font-semibold hover:from-red-700 hover:to-red-800 transition-all disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed shadow-lg"
+                className="w-full py-3 rounded-lg font-semibold transition-all shadow-lg disabled:cursor-not-allowed"
+                style={{ 
+                  background: loading || !validateEmail(email) 
+                    ? 'rgba(100, 100, 100, 0.5)' 
+                    : 'linear-gradient(135deg, #8B0000 0%, #DC143C 50%, #FF0000 100%)',
+                  color: '#FFFFFF',
+                  boxShadow: loading || !validateEmail(email) 
+                    ? 'none' 
+                    : '0 0 20px rgba(220, 20, 60, 0.5)'
+                }}
               >
                 {loading ? 'Sending OTP...' : 'Send OTP'}
               </button>
@@ -521,21 +439,37 @@ export function LoginSignup() {
           {step === 'otp' && (
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-800 mb-2">
+                <label 
+                  className="block text-sm font-semibold mb-2"
+                  style={{ color: '#DC143C' }}
+                >
                   Enter OTP
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-red-500" size={20} />
+                  <Lock 
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2" 
+                    size={20} 
+                    style={{ color: '#FF0000' }}
+                  />
                   <input
                     type="text"
                     value={otp}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     placeholder="Enter 6-digit OTP"
-                    className="w-full pl-10 pr-4 py-3 border-2 border-red-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 text-center text-2xl tracking-wider font-bold"
+                    className="w-full pl-10 pr-4 py-3 rounded-lg text-center text-2xl tracking-wider font-bold"
+                    style={{ 
+                      backgroundColor: 'rgba(139, 0, 0, 0.2)',
+                      border: '2px solid #8B0000',
+                      color: '#FFFFFF',
+                      outline: 'none'
+                    }}
                     maxLength={6}
                   />
                 </div>
-                <p className="text-xs text-gray-600 mt-2 font-medium">
+                <p 
+                  className="text-xs mt-2 font-medium"
+                  style={{ color: '#DC143C' }}
+                >
                   OTP sent to {email}
                 </p>
               </div>
@@ -543,7 +477,16 @@ export function LoginSignup() {
               <button
                 onClick={verifyOTP}
                 disabled={loading || otp.length !== 6}
-                className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-3 rounded-lg font-semibold hover:from-red-700 hover:to-red-800 transition-all disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed shadow-lg"
+                className="w-full py-3 rounded-lg font-semibold transition-all shadow-lg disabled:cursor-not-allowed"
+                style={{ 
+                  background: loading || otp.length !== 6 
+                    ? 'rgba(100, 100, 100, 0.5)' 
+                    : 'linear-gradient(135deg, #8B0000 0%, #DC143C 50%, #FF0000 100%)',
+                  color: '#FFFFFF',
+                  boxShadow: loading || otp.length !== 6 
+                    ? 'none' 
+                    : '0 0 20px rgba(220, 20, 60, 0.5)'
+                }}
               >
                 {loading ? 'Verifying...' : 'Verify & Continue'}
               </button>
@@ -554,16 +497,17 @@ export function LoginSignup() {
                   setOtp('');
                   setDemoOtp('');
                 }}
-                className="w-full text-red-700 py-2 text-sm font-semibold hover:text-red-900 hover:underline"
+                className="w-full py-2 text-sm font-semibold hover:underline"
+                style={{ color: '#FF6B6B' }}
               >
                 Change email
               </button>
             </div>
           )}
 
-          <div className="mt-6 text-center text-xs text-gray-600">
-            <p className="font-semibold">🔒 Secure OTP-based authentication</p>
-            <p className="mt-1">Prevents fake and duplicate registrations</p>
+          <div className="mt-6 text-center text-xs">
+            <p className="font-semibold" style={{ color: '#DC143C' }}>Secure OTP-based authentication</p>
+            <p className="mt-1" style={{ color: '#8B0000' }}>Prevents fake and duplicate registrations</p>
           </div>
         </div>
       </div>
