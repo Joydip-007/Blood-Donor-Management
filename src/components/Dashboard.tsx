@@ -30,9 +30,9 @@ export function Dashboard() {
   })).filter(d => d.value > 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 md:space-y-8">
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         <StatCard
           title="Total Blood Donors"
           value={totalDonors}
@@ -76,35 +76,55 @@ export function Dashboard() {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         <BloodInventoryChart data={inventoryData} />
         <BloodGroupDistribution data={distributionData} />
       </div>
 
       {/* Recent Activity */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h3 className="text-lg font-semibold mb-4">Recent Donations</h3>
-        <div className="overflow-x-auto">
+      <div className="bg-white rounded-lg shadow-md p-6 md:p-8">
+        <h3 className="text-lg md:text-xl font-semibold mb-4 md:mb-6">Recent Donations</h3>
+        
+        {/* Mobile: Card Layout */}
+        <div className="block md:hidden space-y-4">
+          {bloodDonors.slice(0, 5).map((donor) => (
+            <div key={donor.bd_ID} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <h4 className="font-semibold text-base">{donor.bd_name}</h4>
+                  <p className="text-sm text-gray-600 mt-1">Age: {donor.bd_age}</p>
+                </div>
+                <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">
+                  {donor.bd_Bgroup}
+                </span>
+              </div>
+              <p className="text-sm text-gray-600">Registered: {donor.bd_reg_date}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop: Table Layout */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Donor Name</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Blood Group</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Registration Date</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Age</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Donor Name</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Blood Group</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Registration Date</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Age</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {bloodDonors.slice(0, 5).map((donor) => (
                 <tr key={donor.bd_ID} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm">{donor.bd_name}</td>
-                  <td className="px-4 py-3 text-sm">
-                    <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">
+                  <td className="px-4 py-4 text-sm">{donor.bd_name}</td>
+                  <td className="px-4 py-4 text-sm">
+                    <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">
                       {donor.bd_Bgroup}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{donor.bd_reg_date}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{donor.bd_age}</td>
+                  <td className="px-4 py-4 text-sm text-gray-600">{donor.bd_reg_date}</td>
+                  <td className="px-4 py-4 text-sm text-gray-600">{donor.bd_age}</td>
                 </tr>
               ))}
             </tbody>
