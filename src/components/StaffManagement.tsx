@@ -54,7 +54,7 @@ export function StaffManagement() {
         </div>
 
         {/* Mobile Card View */}
-        <div className="block md:hidden p-4 space-y-4">
+        <div className="block md:hidden space-y-4">
           {recordingStaff.map((staff) => {
             const donorCount = getStaffDonorCount(staff.reco_ID);
             const recipientCount = getStaffRecipientCount(staff.reco_ID);
