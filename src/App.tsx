@@ -27,27 +27,27 @@ function AppContent() {
       return (
         <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50">
           <header className="bg-red-600 text-white shadow-lg sticky top-0 z-50">
-            <div className="container mx-auto px-4 py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white rounded-lg">
-                    <Droplet className="text-red-600" size={32} />
+            <div className="container mx-auto px-4 py-4 md:py-5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+                  <div className="p-2 bg-white rounded-lg flex-shrink-0">
+                    <Droplet className="text-red-600" size={28} />
                   </div>
-                  <div>
-                    <h1 className="text-2xl font-bold">Blood Donor Management System</h1>
-                    <p className="text-red-100 text-sm">Admin Panel</p>
+                  <div className="min-w-0">
+                    <h1 className="text-lg md:text-2xl font-bold truncate">Blood Donor Management System</h1>
+                    <p className="text-red-100 text-xs md:text-sm">Admin Panel</p>
                   </div>
                 </div>
                 <button
                   onClick={logout}
-                  className="px-4 py-2 bg-red-700 hover:bg-red-800 rounded-lg transition-colors text-sm font-medium"
+                  className="px-4 md:px-6 py-2 md:py-3 bg-red-700 hover:bg-red-800 rounded-lg transition-colors text-sm md:text-base font-medium whitespace-nowrap min-h-[44px]"
                 >
                   Logout
                 </button>
               </div>
             </div>
           </header>
-          <main className="container mx-auto px-4 py-8">
+          <main className="container mx-auto px-4 py-6 md:py-8">
             <AdminAddDonor 
               onBack={() => setActiveTab('admin')} 
               onSuccess={() => setActiveTab('admin-list')}
@@ -61,27 +61,27 @@ function AppContent() {
       return (
         <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50">
           <header className="bg-red-600 text-white shadow-lg sticky top-0 z-50">
-            <div className="container mx-auto px-4 py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white rounded-lg">
-                    <Droplet className="text-red-600" size={32} />
+            <div className="container mx-auto px-4 py-4 md:py-5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+                  <div className="p-2 bg-white rounded-lg flex-shrink-0">
+                    <Droplet className="text-red-600" size={28} />
                   </div>
-                  <div>
-                    <h1 className="text-2xl font-bold">Blood Donor Management System</h1>
-                    <p className="text-red-100 text-sm">Admin Panel</p>
+                  <div className="min-w-0">
+                    <h1 className="text-lg md:text-2xl font-bold truncate">Blood Donor Management System</h1>
+                    <p className="text-red-100 text-xs md:text-sm">Admin Panel</p>
                   </div>
                 </div>
                 <button
                   onClick={logout}
-                  className="px-4 py-2 bg-red-700 hover:bg-red-800 rounded-lg transition-colors text-sm font-medium"
+                  className="px-4 md:px-6 py-2 md:py-3 bg-red-700 hover:bg-red-800 rounded-lg transition-colors text-sm md:text-base font-medium whitespace-nowrap min-h-[44px]"
                 >
                   Logout
                 </button>
               </div>
             </div>
           </header>
-          <main className="container mx-auto px-4 py-8">
+          <main className="container mx-auto px-4 py-6 md:py-8">
             <AdminDonorList onBack={() => setActiveTab('admin')} />
           </main>
         </div>
@@ -92,31 +92,31 @@ function AppContent() {
       return (
         <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50">
           <header className="bg-red-600 text-white shadow-lg sticky top-0 z-50">
-            <div className="container mx-auto px-4 py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white rounded-lg">
-                    <Droplet className="text-red-600" size={32} />
+            <div className="container mx-auto px-4 py-4 md:py-5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+                  <div className="p-2 bg-white rounded-lg flex-shrink-0">
+                    <Droplet className="text-red-600" size={28} />
                   </div>
-                  <div>
-                    <h1 className="text-2xl font-bold">Blood Donor Management System</h1>
-                    <p className="text-red-100 text-sm">Admin Panel - Statistics & Reports</p>
+                  <div className="min-w-0">
+                    <h1 className="text-lg md:text-2xl font-bold truncate">Blood Donor Management System</h1>
+                    <p className="text-red-100 text-xs md:text-sm">Admin Panel - Statistics & Reports</p>
                   </div>
                 </div>
                 <button
                   onClick={logout}
-                  className="px-4 py-2 bg-red-700 hover:bg-red-800 rounded-lg transition-colors text-sm font-medium"
+                  className="px-4 md:px-6 py-2 md:py-3 bg-red-700 hover:bg-red-800 rounded-lg transition-colors text-sm md:text-base font-medium whitespace-nowrap min-h-[44px]"
                 >
                   Logout
                 </button>
               </div>
             </div>
           </header>
-          <main className="container mx-auto px-4 py-8">
+          <main className="container mx-auto px-4 py-6 md:py-8">
             <div className="max-w-4xl mx-auto">
               <button
                 onClick={() => setActiveTab('admin')}
-                className="mb-4 flex items-center gap-2 text-gray-600 hover:text-gray-900"
+                className="mb-4 flex items-center gap-2 text-gray-700 hover:text-gray-900 font-medium min-h-[44px] px-3 py-2"
               >
                 ← Back to Dashboard
               </button>
@@ -131,37 +131,37 @@ function AppContent() {
       return (
         <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50">
           <header className="bg-red-600 text-white shadow-lg sticky top-0 z-50">
-            <div className="container mx-auto px-4 py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white rounded-lg">
-                    <Droplet className="text-red-600" size={32} />
+            <div className="container mx-auto px-4 py-4 md:py-5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+                  <div className="p-2 bg-white rounded-lg flex-shrink-0">
+                    <Droplet className="text-red-600" size={28} />
                   </div>
-                  <div>
-                    <h1 className="text-2xl font-bold">Blood Donor Management System</h1>
-                    <p className="text-red-100 text-sm">Admin Panel - System Settings</p>
+                  <div className="min-w-0">
+                    <h1 className="text-lg md:text-2xl font-bold truncate">Blood Donor Management System</h1>
+                    <p className="text-red-100 text-xs md:text-sm">Admin Panel - System Settings</p>
                   </div>
                 </div>
                 <button
                   onClick={logout}
-                  className="px-4 py-2 bg-red-700 hover:bg-red-800 rounded-lg transition-colors text-sm font-medium"
+                  className="px-4 md:px-6 py-2 md:py-3 bg-red-700 hover:bg-red-800 rounded-lg transition-colors text-sm md:text-base font-medium whitespace-nowrap min-h-[44px]"
                 >
                   Logout
                 </button>
               </div>
             </div>
           </header>
-          <main className="container mx-auto px-4 py-8">
+          <main className="container mx-auto px-4 py-6 md:py-8">
             <div className="max-w-4xl mx-auto">
               <button
                 onClick={() => setActiveTab('admin')}
-                className="mb-4 flex items-center gap-2 text-gray-600 hover:text-gray-900"
+                className="mb-4 flex items-center gap-2 text-gray-700 hover:text-gray-900 font-medium min-h-[44px] px-3 py-2"
               >
                 ← Back to Dashboard
               </button>
-              <div className="bg-white rounded-lg shadow-lg p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">System Settings</h2>
-                <p className="text-gray-600">System configuration and settings will be available in a future update.</p>
+              <div className="bg-white rounded-lg shadow-lg p-6 md:p-8">
+                <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-4">System Settings</h2>
+                <p className="text-gray-700 text-base">System configuration and settings will be available in a future update.</p>
               </div>
             </div>
           </main>
@@ -172,25 +172,25 @@ function AppContent() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50">
         <header className="bg-red-600 text-white shadow-lg sticky top-0 z-50">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-white rounded-lg">
-                  <Droplet className="text-red-600" size={32} />
+          <div className="container mx-auto px-4 py-4 md:py-5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+                <div className="p-2 bg-white rounded-lg flex-shrink-0">
+                  <Droplet className="text-red-600" size={28} />
                 </div>
-                <div>
-                  <h1 className="text-2xl font-bold">Blood Donor Management System</h1>
-                  <p className="text-red-100 text-sm">Admin Panel</p>
+                <div className="min-w-0">
+                  <h1 className="text-lg md:text-2xl font-bold truncate">Blood Donor Management System</h1>
+                  <p className="text-red-100 text-xs md:text-sm">Admin Panel</p>
                 </div>
               </div>
-              <div className="flex items-center gap-4">
-                <div className="text-right hidden md:block">
-                  <p className="text-sm text-red-100">Admin</p>
-                  <p className="font-medium">{user?.email}</p>
+              <div className="flex items-center gap-3 md:gap-4">
+                <div className="text-right hidden lg:block">
+                  <p className="text-xs md:text-sm text-red-100">Admin</p>
+                  <p className="font-medium text-sm md:text-base">{user?.email}</p>
                 </div>
                 <button
                   onClick={logout}
-                  className="px-4 py-2 bg-red-700 hover:bg-red-800 rounded-lg transition-colors text-sm font-medium"
+                  className="px-4 md:px-6 py-2 md:py-3 bg-red-700 hover:bg-red-800 rounded-lg transition-colors text-sm md:text-base font-medium whitespace-nowrap min-h-[44px]"
                 >
                   Logout
                 </button>
@@ -198,7 +198,7 @@ function AppContent() {
             </div>
           </div>
         </header>
-        <main className="container mx-auto px-4 py-8">
+        <main className="container mx-auto px-4 py-6 md:py-8">
           <AdminDashboard onNavigate={(view) => {
             const viewMap: Record<string, typeof activeTab> = {
               'add': 'admin-add',
@@ -220,27 +220,27 @@ function AppContent() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50">
         <header className="bg-red-600 text-white shadow-lg sticky top-0 z-50">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-white rounded-lg">
-                  <Droplet className="text-red-600" size={32} />
+          <div className="container mx-auto px-4 py-4 md:py-5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+                <div className="p-2 bg-white rounded-lg flex-shrink-0">
+                  <Droplet className="text-red-600" size={28} />
                 </div>
-                <div>
-                  <h1 className="text-2xl font-bold">Blood Donor Management System</h1>
-                  <p className="text-red-100 text-sm">Complete Your Registration</p>
+                <div className="min-w-0">
+                  <h1 className="text-lg md:text-2xl font-bold truncate">Blood Donor Management System</h1>
+                  <p className="text-red-100 text-xs md:text-sm">Complete Your Registration</p>
                 </div>
               </div>
               <button
                 onClick={logout}
-                className="px-4 py-2 bg-red-700 hover:bg-red-800 rounded-lg transition-colors text-sm font-medium"
+                className="px-4 md:px-6 py-2 md:py-3 bg-red-700 hover:bg-red-800 rounded-lg transition-colors text-sm md:text-base font-medium whitespace-nowrap min-h-[44px]"
               >
                 Logout
               </button>
             </div>
           </div>
         </header>
-        <main className="container mx-auto px-4 py-8">
+        <main className="container mx-auto px-4 py-6 md:py-8">
           <DonorRegistration onSuccess={() => {
             setHasProfile(true);
             setActiveTab('profile');
@@ -264,25 +264,25 @@ function AppContent() {
     <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50">
       {/* Header */}
       <header className="bg-red-600 text-white shadow-lg sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-white rounded-lg">
-                <Droplet className="text-red-600" size={32} />
+        <div className="container mx-auto px-4 py-4 md:py-5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+              <div className="p-2 bg-white rounded-lg flex-shrink-0">
+                <Droplet className="text-red-600" size={28} />
               </div>
-              <div>
-                <h1 className="text-2xl font-bold">Blood Donor Management System</h1>
-                <p className="text-red-100 text-sm">Saving Lives Through Smart Blood Matching</p>
+              <div className="min-w-0">
+                <h1 className="text-lg md:text-2xl font-bold truncate">Blood Donor Management System</h1>
+                <p className="text-red-100 text-xs md:text-sm hidden sm:block">Saving Lives Through Smart Blood Matching</p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="text-right hidden md:block">
-                <p className="text-sm text-red-100">Welcome!</p>
-                <p className="font-medium">{user?.email || user?.phone}</p>
+            <div className="flex items-center gap-3 md:gap-4">
+              <div className="text-right hidden lg:block">
+                <p className="text-xs md:text-sm text-red-100">Welcome!</p>
+                <p className="font-medium text-sm md:text-base">{user?.email || user?.phone}</p>
               </div>
               <button
                 onClick={logout}
-                className="px-4 py-2 bg-red-700 hover:bg-red-800 rounded-lg transition-colors text-sm font-medium"
+                className="px-4 md:px-6 py-2 md:py-3 bg-red-700 hover:bg-red-800 rounded-lg transition-colors text-sm md:text-base font-medium whitespace-nowrap min-h-[44px]"
               >
                 Logout
               </button>
@@ -292,17 +292,17 @@ function AppContent() {
       </header>
 
       {/* Navigation Tabs */}
-      <div className="bg-white shadow-md sticky top-[72px] z-40">
-        <div className="container mx-auto px-4">
-          <div className="flex overflow-x-auto">
+      <div className="bg-white shadow-md sticky top-[68px] md:top-[76px] z-40">
+        <div className="container mx-auto px-2 md:px-4">
+          <div className="flex overflow-x-auto scrollbar-hide">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-6 py-4 font-medium whitespace-nowrap transition-colors border-b-2 ${
+                className={`px-4 md:px-6 py-3 md:py-4 font-medium whitespace-nowrap transition-colors border-b-2 text-sm md:text-base min-h-[44px] ${
                   activeTab === tab.id
                     ? 'text-red-600 border-red-600'
-                    : 'text-gray-600 border-transparent hover:text-red-600'
+                    : 'text-gray-700 border-transparent hover:text-red-600'
                 }`}
               >
                 {tab.name}
@@ -313,7 +313,7 @@ function AppContent() {
       </div>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-6 md:py-8">
         {activeTab === 'profile' && (
           <DonorProfile />
         )}
