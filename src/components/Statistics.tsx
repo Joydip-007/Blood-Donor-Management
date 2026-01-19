@@ -84,12 +84,12 @@ export function Statistics() {
   const COLORS = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6'];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 md:space-y-8">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-semibold">Statistical Analysis & Reports</h2>
-          <p className="text-gray-600 mt-1">Comprehensive donor statistics and analytics</p>
+          <h2 className="text-2xl md:text-3xl font-semibold">Statistical Analysis & Reports</h2>
+          <p className="text-gray-700 mt-1">Comprehensive donor statistics and analytics</p>
         </div>
         <button
           onClick={fetchStatistics}
@@ -101,8 +101,8 @@ export function Statistics() {
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-lg shadow-lg p-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-lg shadow-lg p-4 md:p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-blue-100 text-sm">Total Donors</p>
@@ -115,7 +115,7 @@ export function Statistics() {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-lg shadow-lg p-6">
+        <div className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-lg shadow-lg p-4 md:p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-green-100 text-sm">Available Donors</p>
@@ -128,7 +128,7 @@ export function Statistics() {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-red-500 to-red-600 text-white rounded-lg shadow-lg p-6">
+        <div className="bg-gradient-to-br from-red-500 to-red-600 text-white rounded-lg shadow-lg p-4 md:p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-red-100 text-sm">Unavailable Donors</p>
@@ -141,7 +141,7 @@ export function Statistics() {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-lg shadow-lg p-6">
+        <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-lg shadow-lg p-4 md:p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-purple-100 text-sm">Inactive Profiles</p>
@@ -156,14 +156,14 @@ export function Statistics() {
       </div>
 
       {/* Charts Row 1 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Blood Group Distribution */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+        <div className="bg-white rounded-lg shadow-md p-6 md:p-8">
+          <h3 className="text-lg md:text-xl font-semibold mb-4 flex items-center gap-2">
             <Droplet className="text-red-600" size={20} />
             Blood Group-wise Donor Count
           </h3>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={300} minHeight={300}>
             <BarChart data={bloodGroupData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="bloodGroup" />
@@ -176,12 +176,12 @@ export function Statistics() {
         </div>
 
         {/* City Distribution */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+        <div className="bg-white rounded-lg shadow-md p-6 md:p-8">
+          <h3 className="text-lg md:text-xl font-semibold mb-4 flex items-center gap-2">
             <MapPin className="text-red-600" size={20} />
             City-wise Donor Distribution (Top 10)
           </h3>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={300} minHeight={300}>
             <BarChart data={cityData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="city" angle={-45} textAnchor="end" height={100} />
@@ -195,14 +195,14 @@ export function Statistics() {
       </div>
 
       {/* Charts Row 2 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Availability Status */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+        <div className="bg-white rounded-lg shadow-md p-6 md:p-8">
+          <h3 className="text-lg md:text-xl font-semibold mb-4 flex items-center gap-2">
             <Activity className="text-red-600" size={20} />
             Donor Availability Status
           </h3>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={300} minHeight={300}>
             <RechartsPie>
               <Pie
                 data={availabilityData}
@@ -224,12 +224,12 @@ export function Statistics() {
         </div>
 
         {/* Active vs Inactive */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+        <div className="bg-white rounded-lg shadow-md p-6 md:p-8">
+          <h3 className="text-lg md:text-xl font-semibold mb-4 flex items-center gap-2">
             <Users className="text-red-600" size={20} />
             Active vs Inactive Donors
           </h3>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={300} minHeight={300}>
             <RechartsPie>
               <Pie
                 data={statusData}
@@ -252,10 +252,10 @@ export function Statistics() {
       </div>
 
       {/* Detailed Tables */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Blood Group Table */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold mb-4">Blood Group Statistics</h3>
+        <div className="bg-white rounded-lg shadow-md p-6 md:p-8">
+          <h3 className="text-lg md:text-xl font-semibold mb-4">Blood Group Statistics</h3>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
@@ -276,7 +276,7 @@ export function Statistics() {
                         </span>
                       </td>
                       <td className="px-4 py-2 text-sm text-right font-medium">{item.count}</td>
-                      <td className="px-4 py-2 text-sm text-right text-gray-600">
+                      <td className="px-4 py-2 text-sm text-right text-gray-700">
                         {((item.count / stats.totalDonors) * 100).toFixed(1)}%
                       </td>
                     </tr>
@@ -287,8 +287,8 @@ export function Statistics() {
         </div>
 
         {/* City Table */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold mb-4">City-wise Statistics</h3>
+        <div className="bg-white rounded-lg shadow-md p-6 md:p-8">
+          <h3 className="text-lg md:text-xl font-semibold mb-4">City-wise Statistics</h3>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
@@ -308,7 +308,7 @@ export function Statistics() {
                       </div>
                     </td>
                     <td className="px-4 py-2 text-sm text-right font-medium">{item.count}</td>
-                    <td className="px-4 py-2 text-sm text-right text-gray-600">
+                    <td className="px-4 py-2 text-sm text-right text-gray-700">
                       {((item.count / stats.totalDonors) * 100).toFixed(1)}%
                     </td>
                   </tr>
@@ -320,8 +320,8 @@ export function Statistics() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 md:p-8">
           <h4 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
             <PieChart size={20} />
             Database Health
@@ -348,7 +348,7 @@ export function Statistics() {
           </div>
         </div>
 
-        <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+        <div className="bg-green-50 border border-green-200 rounded-lg p-6 md:p-8">
           <h4 className="font-semibold text-green-900 mb-3">Data Quality</h4>
           <ul className="space-y-2 text-sm text-green-800">
             <li>✓ Normalized database (3NF)</li>
@@ -358,7 +358,7 @@ export function Statistics() {
           </ul>
         </div>
 
-        <div className="bg-purple-50 border border-purple-200 rounded-lg p-6">
+        <div className="bg-purple-50 border border-purple-200 rounded-lg p-6 md:p-8">
           <h4 className="font-semibold text-purple-900 mb-3">System Features</h4>
           <ul className="space-y-2 text-sm text-purple-800">
             <li>✓ 90-day availability logic</li>
