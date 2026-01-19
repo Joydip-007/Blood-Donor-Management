@@ -163,16 +163,16 @@ export function DonorRegistration({ onSuccess }: Props) {
   };
 
   return (
-    <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-8">
+    <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-6 md:p-8">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Donor Registration</h2>
-        <p className="text-gray-600 mt-1">Complete your profile to become a registered blood donor</p>
+        <h2 className="text-xl md:text-2xl font-bold text-gray-900">Donor Registration</h2>
+        <p className="text-gray-700 mt-1">Complete your profile to become a registered blood donor</p>
       </div>
 
       {/* Welcome Message */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 md:p-6 mb-6">
         <h3 className="font-semibold text-blue-900 mb-2">🎉 Welcome! Complete Your Registration</h3>
-        <p className="text-sm text-blue-800">
+        <p className="text-xs md:text-sm text-blue-800">
           Your email has been verified and is locked for security. 
           Please fill in the remaining information to complete your donor registration.
           You can update your profile and donation information anytime after registration.
@@ -180,22 +180,22 @@ export function DonorRegistration({ onSuccess }: Props) {
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
+        <div className="mb-6 p-4 md:p-6 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
           <AlertCircle size={20} />
           <span>{error}</span>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6 md:space-y-8">
         {/* Personal Information */}
         <div>
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <h3 className="text-base md:text-lg font-semibold mb-4 md:mb-6 flex items-center gap-2">
             <User size={20} className="text-red-600" />
             Personal Information
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm md:text-base font-semibold text-gray-700 mb-2">
                 Full Name *
               </label>
               <input
@@ -203,13 +203,13 @@ export function DonorRegistration({ onSuccess }: Props) {
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                className="w-full px-4 py-3 text-base min-h-[44px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+              <label className="block text-sm md:text-base font-semibold text-gray-700 mb-2 flex items-center gap-1">
                 <Calendar size={16} className="text-red-600" />
                 Date of Birth (Optional)
               </label>
@@ -219,13 +219,13 @@ export function DonorRegistration({ onSuccess }: Props) {
                 value={formData.dateOfBirth}
                 onChange={handleChange}
                 max={new Date().toISOString().split('T')[0]}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                className="w-full px-4 py-3 text-base min-h-[44px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
               />
-              <p className="text-xs text-gray-500 mt-1">Age will be calculated automatically</p>
+              <p className="text-xs md:text-sm text-gray-700 mt-1">Age will be calculated automatically</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm md:text-base font-semibold text-gray-700 mb-2">
                 Age *
               </label>
               <input
@@ -235,22 +235,22 @@ export function DonorRegistration({ onSuccess }: Props) {
                 onChange={handleChange}
                 min="18"
                 max="65"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-gray-50"
+                className="w-full px-4 py-3 text-base min-h-[44px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-gray-50"
                 required={!formData.dateOfBirth}
                 readOnly={!!formData.dateOfBirth}
               />
-              <p className="text-xs text-gray-500 mt-1">Must be between 18-65 years{formData.dateOfBirth ? ' (auto-calculated)' : ''}</p>
+              <p className="text-xs md:text-sm text-gray-700 mt-1">Must be between 18-65 years{formData.dateOfBirth ? ' (auto-calculated)' : ''}</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm md:text-base font-semibold text-gray-700 mb-2">
                 Gender *
               </label>
               <select
                 name="gender"
                 value={formData.gender}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                className="w-full px-4 py-3 text-base min-h-[44px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                 required
               >
                 <option value="Male">Male</option>
@@ -260,7 +260,7 @@ export function DonorRegistration({ onSuccess }: Props) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+              <label className="block text-sm md:text-base font-semibold text-gray-700 mb-2 flex items-center gap-1">
                 <Droplet size={16} className="text-red-600" />
                 Blood Group *
               </label>
@@ -268,7 +268,7 @@ export function DonorRegistration({ onSuccess }: Props) {
                 name="bloodGroup"
                 value={formData.bloodGroup}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                className="w-full px-4 py-3 text-base min-h-[44px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                 required
               >
                 {bloodGroups.map(bg => (
@@ -281,31 +281,31 @@ export function DonorRegistration({ onSuccess }: Props) {
 
         {/* Contact Information */}
         <div>
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <h3 className="text-base md:text-lg font-semibold mb-4 md:mb-6 flex items-center gap-2">
             <Phone size={20} className="text-red-600" />
             Contact Information
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+              <label className="block text-sm md:text-base font-semibold text-gray-700 mb-2 flex items-center gap-1">
                 <Mail size={16} />
-                📧 Email * <span className="text-xs text-gray-500">(from your login)</span>
+                📧 Email * <span className="text-xs md:text-sm text-gray-700">(from your login)</span>
               </label>
               <input
                 type="email"
                 name="email"
                 value={formData.email}
                 readOnly
-                className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg cursor-not-allowed focus:outline-none"
+                className="w-full px-4 py-3 text-base min-h-[44px] bg-gray-100 border border-gray-300 rounded-lg cursor-not-allowed focus:outline-none"
                 required
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs md:text-sm text-gray-700 mt-1">
                 🔒 Email is locked to your verified login email for security
               </p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+              <label className="block text-sm md:text-base font-semibold text-gray-700 mb-2 flex items-center gap-1">
                 <Phone size={16} />
                 Primary Phone *
               </label>
@@ -318,13 +318,13 @@ export function DonorRegistration({ onSuccess }: Props) {
                   setFormData(prev => ({ ...prev, phone: value }));
                 }}
                 placeholder="10-digit number"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                className="w-full px-4 py-3 text-base min-h-[44px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm md:text-base font-semibold text-gray-700 mb-2">
                 Alternate Phone (Optional)
               </label>
               <input
@@ -336,7 +336,7 @@ export function DonorRegistration({ onSuccess }: Props) {
                   setFormData(prev => ({ ...prev, alternatePhone: value }));
                 }}
                 placeholder="10-digit number"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                className="w-full px-4 py-3 text-base min-h-[44px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
               />
             </div>
           </div>
@@ -344,13 +344,13 @@ export function DonorRegistration({ onSuccess }: Props) {
 
         {/* Location Information */}
         <div>
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <h3 className="text-base md:text-lg font-semibold mb-4 md:mb-6 flex items-center gap-2">
             <MapPin size={20} className="text-red-600" />
             Location Information
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm md:text-base font-semibold text-gray-700 mb-2">
                 City *
               </label>
               <input
@@ -359,7 +359,7 @@ export function DonorRegistration({ onSuccess }: Props) {
                 value={formData.city}
                 onChange={handleChange}
                 placeholder="e.g., Dhaka, Chittagong, Sylhet, Rajshahi"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                className="w-full px-4 py-3 text-base min-h-[44px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                 required
                 minLength={2}
                 maxLength={50}
@@ -367,7 +367,7 @@ export function DonorRegistration({ onSuccess }: Props) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm md:text-base font-semibold text-gray-700 mb-2">
                 Area/Locality *
               </label>
               <input
@@ -376,7 +376,7 @@ export function DonorRegistration({ onSuccess }: Props) {
                 value={formData.area}
                 onChange={handleChange}
                 placeholder="e.g., Dhanmondi, Gulshan, Mirpur, Banani"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                className="w-full px-4 py-3 text-base min-h-[44px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                 required
                 minLength={2}
                 maxLength={100}
@@ -384,7 +384,7 @@ export function DonorRegistration({ onSuccess }: Props) {
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm md:text-base font-semibold text-gray-700 mb-2">
                 Full Address *
               </label>
               <input
@@ -393,13 +393,13 @@ export function DonorRegistration({ onSuccess }: Props) {
                 value={formData.address}
                 onChange={handleChange}
                 placeholder="Street address, landmark"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                className="w-full px-4 py-3 text-base min-h-[44px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm md:text-base font-semibold text-gray-700 mb-2">
                 Latitude (Optional)
               </label>
               <input
@@ -408,12 +408,12 @@ export function DonorRegistration({ onSuccess }: Props) {
                 value={formData.latitude}
                 onChange={handleChange}
                 placeholder="e.g., 23.8103"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                className="w-full px-4 py-3 text-base min-h-[44px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm md:text-base font-semibold text-gray-700 mb-2">
                 Longitude (Optional)
               </label>
               <input
@@ -422,7 +422,7 @@ export function DonorRegistration({ onSuccess }: Props) {
                 value={formData.longitude}
                 onChange={handleChange}
                 placeholder="e.g., 90.4125"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                className="w-full px-4 py-3 text-base min-h-[44px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
               />
             </div>
 
@@ -430,7 +430,7 @@ export function DonorRegistration({ onSuccess }: Props) {
               <button
                 type="button"
                 onClick={getCurrentLocation}
-                className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                className="text-xs md:text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
               >
                 <MapPin size={16} />
                 Get Current Location
@@ -444,16 +444,16 @@ export function DonorRegistration({ onSuccess }: Props) {
           <button
             type="submit"
             disabled={loading}
-            className="flex-1 bg-red-600 text-white py-3 rounded-lg font-medium hover:bg-red-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+            className="flex-1 bg-red-600 text-white py-3 md:py-4 text-base md:text-lg font-semibold min-h-[48px] rounded-lg hover:bg-red-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
           >
             {loading ? 'Registering...' : 'Complete Registration'}
           </button>
         </div>
       </form>
 
-      <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+      <div className="mt-6 p-4 md:p-6 bg-blue-50 rounded-lg">
         <h4 className="font-medium text-blue-900 mb-2">Data Privacy & Security</h4>
-        <ul className="text-sm text-blue-800 space-y-1">
+        <ul className="text-xs md:text-sm text-blue-800 space-y-1">
           <li>✓ Your data is encrypted and securely stored</li>
           <li>✓ Contact details shown only when required</li>
           <li>✓ Duplicate registrations prevented automatically</li>
