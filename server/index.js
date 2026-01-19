@@ -1181,6 +1181,276 @@ app.get('/api/admin/donors/all', isAdmin, async (req, res) => {
   }
 });
 
+// Admin: Update donor profile
+app.put('/api/admin/donors/:donorId', isAdmin, async (req, res) => {
+  try {
+    const { donorId } = req.params;
+    const { name, age, dateOfBirth, gender, bloodGroup, phone, alternatePhone, city, area, address, latitude, longitude, lastDonationDate, isAvailable } = req.body;
+
+    // Check if donor exists
+    const [existingDonor] = await pool.execute(
+      'SELECT donor_id FROM DONOR WHERE donor_id = ?',
+      [donorId]
+    );
+
+    if (existingDonor.length === 0) {
+      return res.status(404).json({ error: 'Donor not found' });
+    }
+
+    // Calculate age from dateOfBirth if provided
+    let finalAge = age;
+    if (dateOfBirth) {
+      finalAge = calculateAge(dateOfBirth);
+    }
+
+    // Validate age if provided
+    if (finalAge && (finalAge < 18 || finalAge > 65)) {
+      return res.status(400).json({ error: 'Age must be between 18 and 65' });
+    }
+
+    // Get blood group ID if blood group is being updated
+    let bloodGroupId = null;
+    if (bloodGroup) {
+      bloodGroupId = await getBloodGroupId(bloodGroup);
+      if (!bloodGroupId) {
+        return res.status(400).json({ error: 'Invalid blood group' });
+      }
+    }
+
+    // Update location if changed
+    let locationId = null;
+    if (city || area) {
+      const [currentLocation] = await pool.execute(
+        'SELECT l.city, l.area, d.location_id FROM DONOR d JOIN LOCATION l ON d.location_id = l.location_id WHERE d.donor_id = ?',
+        [donorId]
+      );
+      
+      const newCity = city || currentLocation[0]?.city;
+      const newArea = area || currentLocation[0]?.area;
+      
+      if (newCity && newArea) {
+        locationId = await getOrCreateLocation(newCity, newArea, latitude, longitude);
+      }
+    }
+
+    // Build dynamic UPDATE query
+    const updates = [];
+    const params = [];
+
+    if (name) {
+      updates.push('full_name = ?');
+      params.push(name);
+    }
+    if (finalAge) {
+      updates.push('age = ?');
+      params.push(finalAge);
+    }
+    if (gender) {
+      updates.push('gender = ?');
+      params.push(genderReverseMap[gender] || gender);
+    }
+    if (bloodGroupId) {
+      updates.push('blood_group = ?');
+      params.push(bloodGroupId);
+    }
+    if (locationId) {
+      updates.push('location_id = ?');
+      params.push(locationId);
+    }
+    if (lastDonationDate !== undefined) {
+      updates.push('last_donate = ?');
+      params.push(lastDonationDate || null);
+      
+      // Update availability based on 90-day rule
+      if (lastDonationDate) {
+        const daysSince = Math.floor((Date.now() - new Date(lastDonationDate).getTime()) / (1000 * 60 * 60 * 24));
+        const autoAvailable = daysSince >= 90;
+        updates.push('availability = ?');
+        params.push(autoAvailable);
+      }
+    } else if (isAvailable !== undefined) {
+      updates.push('availability = ?');
+      params.push(isAvailable);
+    }
+
+    // Execute update if there are changes
+    if (updates.length > 0) {
+      params.push(donorId);
+      await pool.execute(
+        `UPDATE DONOR SET ${updates.join(', ')} WHERE donor_id = ?`,
+        params
+      );
+    }
+
+    // Update phone numbers if provided
+    if (phone) {
+      const [existingContacts] = await pool.execute(
+        'SELECT contact_id FROM CONTACT_NUMBER WHERE donor_id = ? ORDER BY contact_id',
+        [donorId]
+      );
+
+      if (existingContacts.length > 0) {
+        await pool.execute('UPDATE CONTACT_NUMBER SET phone_number = ? WHERE contact_id = ?', 
+          [phone, existingContacts[0].contact_id]);
+      } else {
+        await pool.execute('INSERT INTO CONTACT_NUMBER (donor_id, phone_number) VALUES (?, ?)', 
+          [donorId, phone]);
+      }
+
+      if (alternatePhone) {
+        if (existingContacts.length > 1) {
+          await pool.execute('UPDATE CONTACT_NUMBER SET phone_number = ? WHERE contact_id = ?', 
+            [alternatePhone, existingContacts[1].contact_id]);
+        } else {
+          await pool.execute('INSERT INTO CONTACT_NUMBER (donor_id, phone_number) VALUES (?, ?)', 
+            [donorId, alternatePhone]);
+        }
+      }
+    }
+
+    // Fetch updated donor data
+    const [updatedDonorData] = await pool.execute(
+      `SELECT d.*, l.city, l.area, l.latitude, l.longitude, bg.bg_name, bg.rh_factor
+       FROM DONOR d 
+       LEFT JOIN LOCATION l ON d.location_id = l.location_id
+       LEFT JOIN BLOOD_GROUP bg ON d.blood_group = bg.bg_id
+       WHERE d.donor_id = ?`,
+      [donorId]
+    );
+
+    const d = updatedDonorData[0];
+
+    // Get contact numbers
+    const [contacts] = await pool.execute(
+      'SELECT phone_number FROM CONTACT_NUMBER WHERE donor_id = ? ORDER BY contact_id',
+      [donorId]
+    );
+
+    const phones = contacts.map(c => c.phone_number);
+
+    // Calculate availability
+    let availability = d.availability;
+    if (d.last_donate) {
+      const daysSince = Math.floor((Date.now() - new Date(d.last_donate).getTime()) / (1000 * 60 * 60 * 24));
+      availability = daysSince >= 90;
+    }
+
+    const donor = {
+      id: d.donor_id.toString(),
+      name: d.full_name,
+      email: d.email,
+      phone: phones[0] || '',
+      alternatePhone: phones[1] || '',
+      age: d.age,
+      gender: genderMap[d.gender] || d.gender,
+      bloodGroup: `${d.bg_name}${d.rh_factor}`,
+      city: d.city || '',
+      area: d.area || '',
+      address: '',
+      latitude: d.latitude,
+      longitude: d.longitude,
+      isAvailable: availability,
+      isDeleted: !d.is_active,
+      lastDonationDate: d.last_donate,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    res.json({ success: true, donor });
+  } catch (error) {
+    console.error('Error updating donor:', error);
+    res.status(500).json({ error: 'Failed to update donor' });
+  }
+});
+
+// Admin: Deactivate donor (soft delete)
+app.delete('/api/admin/donors/:donorId', isAdmin, async (req, res) => {
+  try {
+    const { donorId } = req.params;
+
+    // Check if donor exists
+    const [existingDonor] = await pool.execute(
+      'SELECT donor_id, is_active FROM DONOR WHERE donor_id = ?',
+      [donorId]
+    );
+
+    if (existingDonor.length === 0) {
+      return res.status(404).json({ error: 'Donor not found' });
+    }
+
+    if (!existingDonor[0].is_active) {
+      return res.status(400).json({ error: 'Donor is already inactive' });
+    }
+
+    // Soft delete
+    await pool.execute('UPDATE DONOR SET is_active = FALSE WHERE donor_id = ?', [donorId]);
+
+    res.json({ success: true, message: 'Donor deactivated successfully' });
+  } catch (error) {
+    console.error('Error deactivating donor:', error);
+    res.status(500).json({ error: 'Failed to deactivate donor' });
+  }
+});
+
+// Admin: Reactivate donor
+app.patch('/api/admin/donors/:donorId/reactivate', isAdmin, async (req, res) => {
+  try {
+    const { donorId } = req.params;
+
+    // Check if donor exists
+    const [existingDonor] = await pool.execute(
+      'SELECT donor_id, is_active FROM DONOR WHERE donor_id = ?',
+      [donorId]
+    );
+
+    if (existingDonor.length === 0) {
+      return res.status(404).json({ error: 'Donor not found' });
+    }
+
+    if (existingDonor[0].is_active) {
+      return res.status(400).json({ error: 'Donor is already active' });
+    }
+
+    // Reactivate
+    await pool.execute('UPDATE DONOR SET is_active = TRUE WHERE donor_id = ?', [donorId]);
+
+    res.json({ success: true, message: 'Donor reactivated successfully' });
+  } catch (error) {
+    console.error('Error reactivating donor:', error);
+    res.status(500).json({ error: 'Failed to reactivate donor' });
+  }
+});
+
+// Admin: Toggle donor availability
+app.patch('/api/admin/donors/:donorId/availability', isAdmin, async (req, res) => {
+  try {
+    const { donorId } = req.params;
+    const { isAvailable } = req.body;
+
+    if (isAvailable === undefined) {
+      return res.status(400).json({ error: 'isAvailable is required' });
+    }
+
+    // Check if donor exists
+    const [existingDonor] = await pool.execute(
+      'SELECT donor_id FROM DONOR WHERE donor_id = ? AND is_active = TRUE',
+      [donorId]
+    );
+
+    if (existingDonor.length === 0) {
+      return res.status(404).json({ error: 'Donor not found or inactive' });
+    }
+
+    // Update availability
+    await pool.execute('UPDATE DONOR SET availability = ? WHERE donor_id = ?', [isAvailable, donorId]);
+
+    res.json({ success: true, message: `Donor marked as ${isAvailable ? 'available' : 'unavailable'}` });
+  } catch (error) {
+    console.error('Error toggling availability:', error);
+    res.status(500).json({ error: 'Failed to toggle availability' });
+  }
+});
+
 // Health check endpoint
 app.get('/api/health', async (req, res) => {
   try {
