@@ -181,7 +181,7 @@ function BloodCellsAnimation() {
     cell.vy *= cell.friction;
     cell.rotation += cell.rotationSpeed;
 
-    // Gentle floating
+    // Gentle floating return to base
     if (cell.x !== cell.baseX) cell.x -= (cell.x - cell.baseX) * 0.005;
     if (cell.y !== cell.baseY) cell.y -= (cell.y - cell.baseY) * 0.005;
 
@@ -190,14 +190,25 @@ function BloodCellsAnimation() {
     const distance = Math.sqrt(dx * dx + dy * dy);
 
     if (distance < interactionDistance) {
+      // Repel from mouse
       const forceDirectionX = dx / distance;
       const forceDirectionY = dy / distance;
       const force = (interactionDistance - distance) / interactionDistance;
 
       cell.x -= forceDirectionX * force * cell.density * 3;
       cell.y -= forceDirectionY * force * cell.density * 3;
+      
+      // Spin up when interacting
       cell.rotationSpeed += (Math.random() - 0.5) * 0.1;
-    } 
+    } else {
+      // Decay rotation speed (friction)
+      cell.rotationSpeed *= 0.95;
+      
+      // Keep a tiny idle rotation
+      if (Math.abs(cell.rotationSpeed) < 0.001) {
+          cell.rotationSpeed = 0.001 * (Math.random() > 0.5 ? 1 : -1);
+      }
+    }
   };
 
   const animate = useCallback(() => {
