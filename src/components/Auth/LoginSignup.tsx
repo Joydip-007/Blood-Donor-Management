@@ -66,11 +66,7 @@ function BloodCellsAnimation() {
     ctx.translate(cell.x, cell.y);
     ctx.rotate(cell.rotation);
     
-    // Smooth shadows for depth
-    ctx.shadowColor = "rgba(100, 0, 0, 0.2)";
-    ctx.shadowBlur = 10;
-    
-    // Outer red cell - Glossy Gradient
+    // Outer red cell - Glossy Gradient without expensive shadowBlur
     const gradient = ctx.createRadialGradient(
       -cell.size * 0.3, -cell.size * 0.3, cell.size * 0.1, 
       0, 0, cell.size
@@ -104,9 +100,6 @@ function BloodCellsAnimation() {
     ctx.translate(cell.x, cell.y);
     ctx.rotate(cell.rotation);
     
-    ctx.shadowColor = "rgba(255, 255, 255, 0.4)";
-    ctx.shadowBlur = 15;
-
     // Outer membrane - Glassy look
     const gradient = ctx.createRadialGradient(
         -cell.size * 0.2, -cell.size * 0.2, 0, 
