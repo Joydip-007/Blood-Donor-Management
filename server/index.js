@@ -1118,6 +1118,14 @@ app.post('/api/requests/create', async (req, res) => {
   try {
     const { bloodGroup, city, area, hospitalName, contactPhone } = req.body;
 
+    // Validate contact phone
+    const cleanedContactPhone = cleanPhoneNumber(contactPhone);
+    if (!isValidBangladeshPhone(cleanedContactPhone)) {
+      return res.status(400).json({ 
+        error: 'Contact phone must be a valid 11-digit Bangladesh number (e.g., 01744423250)' 
+      });
+    }
+
     // Get blood group ID
     const bloodGroupId = await getBloodGroupId(bloodGroup);
     if (!bloodGroupId) {
@@ -1127,11 +1135,11 @@ app.post('/api/requests/create', async (req, res) => {
     // Get or create location
     const locationId = await getOrCreateLocation(city, area || '');
 
-    // Insert emergency request
+    // Insert emergency request (use cleaned phone number)
     const [result] = await pool.execute(
       `INSERT INTO EMERGENCY_REQUEST (blood_group, hospital_name, request_date, location_id, contact_number) 
        VALUES (?, ?, NOW(), ?, ?)`,
-      [bloodGroupId, hospitalName, locationId, contactPhone]
+      [bloodGroupId, hospitalName, locationId, cleanedContactPhone]
     );
 
     // Get compatible blood groups (from BLOOD_COMPATIBILITY table per ERD)
