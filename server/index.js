@@ -29,6 +29,12 @@ const PORT = process.env.PORT || 3001;
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
+// Phone validation error messages
+const PHONE_VALIDATION_ERRORS = {
+  INVALID_PRIMARY: 'Invalid phone number. Must be 11 digits starting with 01 (e.g., 01744423250)',
+  INVALID_ALTERNATE: 'Invalid alternate phone number. Must be 11 digits starting with 01'
+};
+
 // Geocoding configuration - supports Google Maps and Locationiq
 const GEOCODING_CONFIG = {
   provider: (process.env.GEOCODING_PROVIDER || 'google').toLowerCase(),
@@ -695,14 +701,14 @@ app.post('/api/donors/register', async (req, res) => {
     // Validate primary phone
     if (!isValidBangladeshPhone(cleanedPhone)) {
       return res.status(400).json({ 
-        error: 'Invalid phone number. Must be 11 digits starting with 01 (e.g., 01744423250)' 
+        error: PHONE_VALIDATION_ERRORS.INVALID_PRIMARY 
       });
     }
 
     // Validate alternate phone if provided
     if (cleanedAltPhone && !isValidBangladeshPhone(cleanedAltPhone)) {
       return res.status(400).json({ 
-        error: 'Invalid alternate phone number. Must be 11 digits starting with 01' 
+        error: PHONE_VALIDATION_ERRORS.INVALID_ALTERNATE 
       });
     }
 
@@ -918,7 +924,7 @@ app.put('/api/donors/profile', async (req, res) => {
       const cleanedPhone = cleanPhoneNumber(updates.phone);
       if (!isValidBangladeshPhone(cleanedPhone)) {
         return res.status(400).json({ 
-          error: 'Invalid phone number. Must be 11 digits starting with 01 (e.g., 01744423250)' 
+          error: PHONE_VALIDATION_ERRORS.INVALID_PRIMARY 
         });
       }
       updates.phone = cleanedPhone;
@@ -928,7 +934,7 @@ app.put('/api/donors/profile', async (req, res) => {
       const cleanedAltPhone = cleanPhoneNumber(updates.alternatePhone);
       if (!isValidBangladeshPhone(cleanedAltPhone)) {
         return res.status(400).json({ 
-          error: 'Invalid alternate phone number. Must be 11 digits starting with 01' 
+          error: PHONE_VALIDATION_ERRORS.INVALID_ALTERNATE 
         });
       }
       updates.alternatePhone = cleanedAltPhone;
@@ -1303,14 +1309,14 @@ app.post('/api/admin/donors/add', isAdmin, async (req, res) => {
     // Validate primary phone
     if (!isValidBangladeshPhone(cleanedPhone)) {
       return res.status(400).json({ 
-        error: 'Invalid phone number. Must be 11 digits starting with 01 (e.g., 01744423250)' 
+        error: PHONE_VALIDATION_ERRORS.INVALID_PRIMARY 
       });
     }
 
     // Validate alternate phone if provided
     if (cleanedAltPhone && !isValidBangladeshPhone(cleanedAltPhone)) {
       return res.status(400).json({ 
-        error: 'Invalid alternate phone number. Must be 11 digits starting with 01' 
+        error: PHONE_VALIDATION_ERRORS.INVALID_ALTERNATE 
       });
     }
 
@@ -1494,7 +1500,7 @@ app.put('/api/admin/donors/:donorId', isAdmin, async (req, res) => {
       cleanedPhone = cleanPhoneNumber(phone);
       if (!isValidBangladeshPhone(cleanedPhone)) {
         return res.status(400).json({ 
-          error: 'Invalid phone number. Must be 11 digits starting with 01 (e.g., 01744423250)' 
+          error: PHONE_VALIDATION_ERRORS.INVALID_PRIMARY 
         });
       }
     }
@@ -1503,7 +1509,7 @@ app.put('/api/admin/donors/:donorId', isAdmin, async (req, res) => {
       cleanedAltPhone = cleanPhoneNumber(alternatePhone);
       if (!isValidBangladeshPhone(cleanedAltPhone)) {
         return res.status(400).json({ 
-          error: 'Invalid alternate phone number. Must be 11 digits starting with 01' 
+          error: PHONE_VALIDATION_ERRORS.INVALID_ALTERNATE 
         });
       }
     }

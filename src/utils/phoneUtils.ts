@@ -30,7 +30,7 @@ export function validateBangladeshPhone(phone: string): PhoneValidationResult {
   }
 
   // Check third digit (must be 3-9)
-  const thirdDigit = parseInt(cleaned.charAt(2));
+  const thirdDigit = parseInt(cleaned.charAt(2), 10);
   if (thirdDigit < 3 || thirdDigit > 9) {
     return { isValid: false, error: 'Invalid phone number format' };
   }
