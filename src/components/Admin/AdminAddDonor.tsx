@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { User, MapPin, Phone, Mail, Droplet, Calendar, AlertCircle, ArrowLeft } from 'lucide-react';
+import { User, MapPin, Phone, Mail, Droplet, Calendar, AlertCircle, ArrowLeft, MapPinned } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_BASE_URL } from '../../utils/api';
 import { BloodGroup } from '../../types';
 import { calculateAge } from '../../utils/helpers';
+import { geocodeLocation, parseCoordinate } from '../../utils/geocoding';
 
 interface Props {
   onBack: () => void;
@@ -15,6 +16,7 @@ export function AdminAddDonor({ onBack, onSuccess }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isGeocoding, setIsGeocoding] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -94,6 +96,33 @@ export function AdminAddDonor({ onBack, onSuccess }: Props) {
     return true;
   };
 
+  const handleGeocode = async () => {
+    if (!formData.city || !formData.area) {
+      alert('Please enter city and area first');
+      return;
+    }
+    
+    setIsGeocoding(true);
+    try {
+      const result = await geocodeLocation(formData.city, formData.area);
+      
+      if (result) {
+        setFormData({
+          ...formData,
+          latitude: result.latitude.toString(),
+          longitude: result.longitude.toString()
+        });
+        alert('✓ Coordinates found successfully!');
+      } else {
+        alert('Could not find coordinates. Please enter manually or try different city/area names.');
+      }
+    } catch (error) {
+      alert('Geocoding failed. Please enter coordinates manually.');
+    } finally {
+      setIsGeocoding(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -118,8 +147,8 @@ export function AdminAddDonor({ onBack, onSuccess }: Props) {
             ...formData,
             age: parseInt(formData.age),
             dateOfBirth: formData.dateOfBirth || undefined,
-            latitude: formData.latitude ? parseFloat(formData.latitude) : undefined,
-            longitude: formData.longitude ? parseFloat(formData.longitude) : undefined,
+            latitude: parseCoordinate(formData.latitude),
+            longitude: parseCoordinate(formData.longitude),
           }),
         }
       );
@@ -374,12 +403,29 @@ export function AdminAddDonor({ onBack, onSuccess }: Props) {
                 />
               </div>
 
+              {/* Geocoding Button */}
+              <div className="md:col-span-2">
+                <button
+                  type="button"
+                  onClick={handleGeocode}
+                  disabled={!formData.city || !formData.area || isGeocoding}
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  <MapPinned size={18} />
+                  {isGeocoding ? 'Finding coordinates...' : 'Auto-fill Coordinates from Address'}
+                </button>
+                <p className="text-xs text-gray-500 mt-1 text-center">
+                  Click to automatically find latitude/longitude
+                </p>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Latitude (Optional)
                 </label>
                 <input
-                  type="text"
+                  type="number"
+                  step="0.00000001"
                   name="latitude"
                   value={formData.latitude}
                   onChange={handleChange}
@@ -393,7 +439,8 @@ export function AdminAddDonor({ onBack, onSuccess }: Props) {
                   Longitude (Optional)
                 </label>
                 <input
-                  type="text"
+                  type="number"
+                  step="0.00000001"
                   name="longitude"
                   value={formData.longitude}
                   onChange={handleChange}

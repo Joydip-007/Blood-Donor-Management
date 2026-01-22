@@ -20,6 +20,7 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
 const { Resend } = require('resend');
+const axios = require('axios');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -27,6 +28,56 @@ const PORT = process.env.PORT || 3001;
 // Initialize Resend email service
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+
+// Geocoding configuration for Locationiq
+const GEOCODING_CONFIG = {
+  apiKey: process.env.GEOCODING_API_KEY,
+  baseURL: 'https://us1.locationiq.com/v1/search.php',
+  enabled: !!process.env.GEOCODING_API_KEY
+};
+
+/**
+ * Geocode a location using Locationiq API
+ * @param {string} city - City name
+ * @param {string} area - Area/locality name
+ * @param {string} country - Country name (default: Bangladesh)
+ * @returns {Promise<{latitude: number, longitude: number} | null>}
+ */
+async function geocodeLocation(city, area, country = 'Bangladesh') {
+  if (!GEOCODING_CONFIG.enabled) {
+    console.log('⚠️  Geocoding disabled: GEOCODING_API_KEY not set');
+    return null;
+  }
+
+  try {
+    const query = `${area}, ${city}, ${country}`;
+    
+    const response = await axios.get(GEOCODING_CONFIG.baseURL, {
+      params: {
+        key: GEOCODING_CONFIG.apiKey,
+        q: query,
+        format: 'json',
+        limit: 1,
+        addressdetails: 1
+      },
+      timeout: 5000 // 5 second timeout
+    });
+
+    if (response.data && response.data.length > 0) {
+      const result = response.data[0];
+      return {
+        latitude: parseFloat(result.lat),
+        longitude: parseFloat(result.lon)
+      };
+    }
+    
+    console.log(`ℹ️  No geocoding results for: ${query}`);
+    return null;
+  } catch (error) {
+    console.error('Geocoding error:', error.message);
+    return null;
+  }
+}
 
 // Middleware
 app.use(cors());
@@ -186,6 +237,10 @@ async function getBloodGroupName(bgId) {
 
 // Get or create location
 async function getOrCreateLocation(city, area, latitude = null, longitude = null) {
+  // Parse coordinates to ensure they're numbers or null
+  const parsedLat = latitude ? parseFloat(latitude) : null;
+  const parsedLon = longitude ? parseFloat(longitude) : null;
+  
   // Check if location exists
   const [existing] = await pool.execute(
     'SELECT location_id FROM LOCATION WHERE city = ? AND area = ?',
@@ -193,13 +248,20 @@ async function getOrCreateLocation(city, area, latitude = null, longitude = null
   );
   
   if (existing.length > 0) {
+    // Update coordinates if provided and not already set
+    if (parsedLat !== null && parsedLon !== null) {
+      await pool.execute(
+        'UPDATE LOCATION SET latitude = ?, longitude = ? WHERE location_id = ? AND (latitude IS NULL OR longitude IS NULL)',
+        [parsedLat, parsedLon, existing[0].location_id]
+      );
+    }
     return existing[0].location_id;
   }
   
-  // Create new location
+  // Create new location with coordinates
   const [result] = await pool.execute(
     'INSERT INTO LOCATION (city, area, latitude, longitude) VALUES (?, ?, ?, ?)',
-    [city, area, latitude, longitude]
+    [city, area, parsedLat, parsedLon]
   );
   
   return result.insertId;
@@ -577,6 +639,35 @@ app.post('/api/donors/register', async (req, res) => {
   } catch (error) {
     console.error('Error registering donor:', error);
     res.status(500).json({ error: 'Failed to register donor' });
+  }
+});
+
+// Geocode a location (for frontend use)
+app.post('/api/geocode', async (req, res) => {
+  try {
+    const { city, area, country } = req.body;
+    
+    if (!city || !area) {
+      return res.status(400).json({ error: 'City and area are required' });
+    }
+
+    const coords = await geocodeLocation(city, area, country);
+    
+    if (coords) {
+      res.json({ 
+        success: true, 
+        latitude: coords.latitude,
+        longitude: coords.longitude 
+      });
+    } else {
+      res.status(404).json({ 
+        success: false, 
+        error: 'Location not found. Please enter coordinates manually.' 
+      });
+    }
+  } catch (error) {
+    console.error('Error in geocode endpoint:', error);
+    res.status(500).json({ error: 'Geocoding failed' });
   }
 });
 
@@ -1451,6 +1542,59 @@ app.patch('/api/admin/donors/:donorId/availability', isAdmin, async (req, res) =
   }
 });
 
+// Admin: Bulk geocode all locations missing coordinates
+app.post('/api/admin/locations/geocode-all', isAdmin, async (req, res) => {
+  try {
+    if (!GEOCODING_CONFIG.enabled) {
+      return res.status(400).json({ 
+        error: 'Geocoding not configured. Set GEOCODING_API_KEY environment variable.' 
+      });
+    }
+
+    const [locations] = await pool.execute(
+      'SELECT location_id, city, area FROM LOCATION WHERE latitude IS NULL OR longitude IS NULL'
+    );
+
+    if (locations.length === 0) {
+      return res.json({ success: true, message: 'All locations already have coordinates', updated: 0 });
+    }
+
+    let updated = 0;
+    let failed = 0;
+    const results = [];
+
+    for (const loc of locations) {
+      const coords = await geocodeLocation(loc.city, loc.area);
+      
+      if (coords) {
+        await pool.execute(
+          'UPDATE LOCATION SET latitude = ?, longitude = ? WHERE location_id = ?',
+          [coords.latitude, coords.longitude, loc.location_id]
+        );
+        updated++;
+        results.push({ location_id: loc.location_id, city: loc.city, area: loc.area, status: 'success' });
+      } else {
+        failed++;
+        results.push({ location_id: loc.location_id, city: loc.city, area: loc.area, status: 'failed' });
+      }
+      
+      // Rate limiting: Locationiq allows up to 2 requests/second on free tier
+      await new Promise(resolve => setTimeout(resolve, 600));
+    }
+
+    res.json({ 
+      success: true, 
+      total: locations.length,
+      updated, 
+      failed,
+      results 
+    });
+  } catch (error) {
+    console.error('Error bulk geocoding locations:', error);
+    res.status(500).json({ error: 'Failed to geocode locations' });
+  }
+});
+
 // Health check endpoint
 app.get('/api/health', async (req, res) => {
   try {
@@ -1458,7 +1602,8 @@ app.get('/api/health', async (req, res) => {
     res.json({ 
       status: 'healthy', 
       database: 'connected',
-      emailService: resend ? 'available' : 'unavailable'
+      emailService: resend ? 'available' : 'unavailable',
+      geocoding: GEOCODING_CONFIG.enabled ? 'available' : 'unavailable'
     });
   } catch (error) {
     res.status(500).json({ 
@@ -1475,12 +1620,17 @@ app.listen(PORT, () => {
   console.log(`Database: ${process.env.DB_NAME || 'blood_donor_management'} (MySQL)`);
   console.log('ERD tables: LOCATION, BLOOD_GROUP, DONOR, CONTACT_NUMBER, BLOOD_COMPATIBILITY, EMERGENCY_REQUEST, OTP');
   
-  // Check email service configuration
   if (resend && process.env.RESEND_API_KEY) {
     console.log(`Email service: Resend API ✓ Configured`);
     console.log(`From address: ${RESEND_FROM_EMAIL}`);
   } else {
     console.log(`Email service: ⚠️  Not configured (set RESEND_API_KEY and RESEND_FROM_EMAIL)`);
+  }
+  
+  if (GEOCODING_CONFIG.enabled) {
+    console.log(`Geocoding: Locationiq ✓ Configured`);
+  } else {
+    console.log(`Geocoding: ⚠️  Not configured (set GEOCODING_API_KEY)`);
   }
 });
 

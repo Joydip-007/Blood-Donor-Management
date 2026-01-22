@@ -8,6 +8,9 @@ USE blood_donor_management;
 -- =============================================
 -- Table: LOCATION
 -- Description: Stores location information for donors and emergency requests
+-- Note: latitude and longitude use DECIMAL type for precise geocoding
+--       DECIMAL(10, 8) for latitude: range -90.00000000 to 90.00000000
+--       DECIMAL(11, 8) for longitude: range -180.00000000 to 180.00000000
 -- =============================================
 CREATE TABLE LOCATION (
     location_id INT PRIMARY KEY AUTO_INCREMENT,

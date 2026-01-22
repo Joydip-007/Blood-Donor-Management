@@ -118,8 +118,54 @@ The system follows the ERD structure with the following tables:
 - **Blood Compatibility Matching**: Uses BLOOD_COMPATIBILITY table to find compatible donors
 - **90-Day Availability Logic**: Donors become unavailable for 90 days after donation
 - **Location-based Search**: Find donors by city and area
+- **Geocoding**: Automatic coordinate fetching using Locationiq API
 - **Soft Delete**: Donor profiles can be deactivated without losing data
 - **Normalized Database**: 3NF compliant schema matching the ERD
+
+## 🗺️ Geocoding Configuration
+
+This application uses **Locationiq** for automatic geocoding of donor locations.
+
+### Setup
+
+1. **Get API Key:**
+   - Sign up at https://locationiq.com/
+   - Free tier includes 5,000 requests/day
+
+2. **Backend Configuration (Railway):**
+   ```bash
+   GEOCODING_API_KEY=your_locationiq_api_key
+   ```
+
+3. **Frontend Configuration (Vercel):**
+   ```bash
+   VITE_API_URL=https://your-backend.railway.app
+   ```
+
+### Features
+
+- ✅ Auto-fill coordinates from city/area
+- ✅ Manual coordinate entry
+- ✅ Admin bulk geocoding for existing locations
+- ✅ Rate limiting (2 requests/second)
+
+### Usage
+
+1. **During donor registration:** Enter city and area, then click "Auto-fill Coordinates"
+2. **Admin panel:** Use "Geocode All Locations" button to bulk geocode existing data
+
+## Database Migration
+
+If you have an existing database, run the migration to update coordinate columns:
+
+```bash
+mysql -u root -p blood_donor_management < migrations/001_update_location_coordinates.sql
+```
+
+This migration:
+- Cleans invalid coordinate data
+- Updates latitude/longitude to DECIMAL type for precision
+- Adds index for better query performance
 
 ## Tech Stack
 
