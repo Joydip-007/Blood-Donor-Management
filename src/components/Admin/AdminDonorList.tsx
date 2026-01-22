@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Search, Droplet, MapPin, Phone, Mail, ArrowLeft, AlertCircle, MoreVertical, Edit, Trash2, CheckCircle, XCircle, Save, X, Filter, RefreshCcw } from 'lucide-react';
+import { Users, Search, Droplet, MapPin, Phone, Mail, ArrowLeft, AlertCircle, MoreVertical, Edit, Trash2, CheckCircle, XCircle, Save, X, Filter, RefreshCcw, MapPinned } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_BASE_URL } from '../../utils/api';
 import { Donor, BloodGroup } from '../../types';
+import { parseCoordinate } from '../../utils/geocoding';
 
 interface Props {
   onBack: () => void;
@@ -131,8 +132,8 @@ export function AdminDonorList({ onBack }: Props) {
           body: JSON.stringify({
             ...editFormData,
             age: parseInt(editFormData.age),
-            latitude: editFormData.latitude ? parseFloat(editFormData.latitude) : undefined,
-            longitude: editFormData.longitude ? parseFloat(editFormData.longitude) : undefined,
+            latitude: parseCoordinate(editFormData.latitude),
+            longitude: parseCoordinate(editFormData.longitude),
           }),
         }
       );
@@ -240,6 +241,41 @@ export function AdminDonorList({ onBack }: Props) {
     setOpenMenuId(null);
   };
 
+  const handleBulkGeocode = async () => {
+    if (!confirm('This will geocode all locations missing coordinates. Continue?')) {
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/admin/locations/geocode-all`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        setSuccess(`✓ Geocoded ${data.updated} locations. ${data.failed} failed.`);
+        fetchDonors(); // Refresh the list
+        setTimeout(() => setSuccess(''), 5000);
+      } else {
+        setError('Geocoding failed: ' + data.error);
+      }
+    } catch (error) {
+      setError('Error during bulk geocoding');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto">
       <button
@@ -260,13 +296,23 @@ export function AdminDonorList({ onBack }: Props) {
             </h2>
             <p className="text-gray-600 mt-1">Complete list with management tools</p>
           </div>
-          <button
-            onClick={fetchDonors}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-          >
-            <RefreshCcw size={18} />
-            Refresh
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleBulkGeocode}
+              disabled={loading}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:bg-gray-300"
+            >
+              <MapPinned size={18} />
+              Geocode All Locations
+            </button>
+            <button
+              onClick={fetchDonors}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            >
+              <RefreshCcw size={18} />
+              Refresh
+            </button>
+          </div>
         </div>
 
         {/* Success/Error Messages */}
