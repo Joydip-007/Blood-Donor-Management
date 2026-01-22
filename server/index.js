@@ -29,15 +29,123 @@ const PORT = process.env.PORT || 3001;
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
-// Geocoding configuration for Locationiq
+// Geocoding configuration - supports Google Maps and Locationiq
 const GEOCODING_CONFIG = {
+  provider: (process.env.GEOCODING_PROVIDER || 'google').toLowerCase(),
   apiKey: process.env.GEOCODING_API_KEY,
-  baseURL: 'https://us1.locationiq.com/v1/search.php',
-  enabled: !!process.env.GEOCODING_API_KEY
+  enabled: !!process.env.GEOCODING_API_KEY,
+  
+  google: {
+    baseURL: 'https://maps.googleapis.com/maps/api/geocode/json',
+    name: 'Google Maps Geocoding API'
+  },
+  
+  locationiq: {
+    baseURL: 'https://us1.locationiq.com/v1/search.php',
+    name: 'Locationiq API'
+  }
 };
 
 /**
- * Geocode a location using Locationiq API
+ * Geocode using Google Maps Geocoding API
+ * Docs: https://developers.google.com/maps/documentation/geocoding
+ * @param {string} city - City name
+ * @param {string} area - Area/locality name
+ * @param {string} country - Country name (default: Bangladesh)
+ * @returns {Promise<{latitude: number, longitude: number, formattedAddress: string} | null>}
+ */
+async function geocodeWithGoogle(city, area, country = 'Bangladesh') {
+  try {
+    const address = `${area}, ${city}, ${country}`;
+    
+    const response = await axios.get(GEOCODING_CONFIG.google.baseURL, {
+      params: {
+        address: address,
+        key: GEOCODING_CONFIG.apiKey,
+        region: 'bd' // Bias results to Bangladesh
+      },
+      timeout: 5000
+    });
+
+    // Google API status codes: OK, ZERO_RESULTS, OVER_QUERY_LIMIT, REQUEST_DENIED, INVALID_REQUEST
+    if (response.data.status === 'OK' && response.data.results.length > 0) {
+      const result = response.data.results[0];
+      const location = result.geometry.location;
+      
+      return {
+        latitude: parseFloat(location.lat),
+        longitude: parseFloat(location.lng),
+        formattedAddress: result.formatted_address
+      };
+    }
+
+    if (response.data.status === 'ZERO_RESULTS') {
+      console.log(`ℹ️  Google: No results found for "${address}"`);
+    } else if (response.data.status === 'OVER_QUERY_LIMIT') {
+      console.error('⚠️  Google: API quota exceeded');
+    } else if (response.data.status === 'REQUEST_DENIED') {
+      console.error('⚠️  Google: API request denied. Check API key and restrictions.');
+    } else {
+      console.log(`ℹ️  Google: ${response.data.status} for "${address}"`);
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Google Geocoding error:', error.message);
+    if (error.response) {
+      console.error('Google API response:', error.response.data);
+    }
+    return null;
+  }
+}
+
+/**
+ * Geocode using Locationiq API
+ * Docs: https://locationiq.com/docs
+ * @param {string} city - City name
+ * @param {string} area - Area/locality name
+ * @param {string} country - Country name (default: Bangladesh)
+ * @returns {Promise<{latitude: number, longitude: number, formattedAddress: string} | null>}
+ */
+async function geocodeWithLocationiq(city, area, country = 'Bangladesh') {
+  try {
+    const query = `${area}, ${city}, ${country}`;
+    
+    const response = await axios.get(GEOCODING_CONFIG.locationiq.baseURL, {
+      params: {
+        key: GEOCODING_CONFIG.apiKey,
+        q: query,
+        format: 'json',
+        limit: 1,
+        addressdetails: 1,
+        countrycodes: 'bd' // Limit to Bangladesh
+      },
+      timeout: 5000
+    });
+
+    if (response.data && response.data.length > 0) {
+      const result = response.data[0];
+      return {
+        latitude: parseFloat(result.lat),
+        longitude: parseFloat(result.lon),
+        formattedAddress: result.display_name
+      };
+    }
+    
+    console.log(`ℹ️  Locationiq: No results for "${query}"`);
+    return null;
+  } catch (error) {
+    console.error('Locationiq error:', error.message);
+    if (error.response) {
+      console.error('Locationiq API response:', error.response.data);
+    }
+    return null;
+  }
+}
+
+/**
+ * Main geocoding function - automatically uses configured provider
+ * Falls back to alternative provider if primary fails
  * @param {string} city - City name
  * @param {string} area - Area/locality name
  * @param {string} country - Country name (default: Bangladesh)
@@ -49,32 +157,42 @@ async function geocodeLocation(city, area, country = 'Bangladesh') {
     return null;
   }
 
-  try {
-    const query = `${area}, ${city}, ${country}`;
-    
-    const response = await axios.get(GEOCODING_CONFIG.baseURL, {
-      params: {
-        key: GEOCODING_CONFIG.apiKey,
-        q: query,
-        format: 'json',
-        limit: 1,
-        addressdetails: 1
-      },
-      timeout: 5000 // 5 second timeout
-    });
+  const providerName = GEOCODING_CONFIG.provider === 'google' 
+    ? GEOCODING_CONFIG.google.name 
+    : GEOCODING_CONFIG.locationiq.name;
 
-    if (response.data && response.data.length > 0) {
-      const result = response.data[0];
-      return {
-        latitude: parseFloat(result.lat),
-        longitude: parseFloat(result.lon)
-      };
-    }
+  console.log(`🗺️  Geocoding "${area}, ${city}" using ${providerName}...`);
+
+  let result = null;
+
+  // Try primary provider
+  if (GEOCODING_CONFIG.provider === 'google') {
+    result = await geocodeWithGoogle(city, area, country);
     
-    console.log(`ℹ️  No geocoding results for: ${query}`);
-    return null;
-  } catch (error) {
-    console.error('Geocoding error:', error.message);
+    // Fallback to Locationiq if Google fails (optional - can be disabled)
+    if (!result && process.env.ENABLE_GEOCODING_FALLBACK === 'true') {
+      console.log('⚠️  Google failed, trying Locationiq as fallback...');
+      result = await geocodeWithLocationiq(city, area, country);
+    }
+  } else {
+    result = await geocodeWithLocationiq(city, area, country);
+    
+    // Fallback to Google if Locationiq fails (optional)
+    if (!result && process.env.ENABLE_GEOCODING_FALLBACK === 'true') {
+      console.log('⚠️  Locationiq failed, trying Google as fallback...');
+      result = await geocodeWithGoogle(city, area, country);
+    }
+  }
+
+  if (result) {
+    console.log(`✅ Geocoded: ${result.latitude}, ${result.longitude}`);
+    // Return only lat/lng (formattedAddress is for logging/debugging)
+    return {
+      latitude: result.latitude,
+      longitude: result.longitude
+    };
+  } else {
+    console.log(`❌ Geocoding failed for "${area}, ${city}"`);
     return null;
   }
 }
@@ -1603,7 +1721,9 @@ app.get('/api/health', async (req, res) => {
       status: 'healthy', 
       database: 'connected',
       emailService: resend ? 'available' : 'unavailable',
-      geocoding: GEOCODING_CONFIG.enabled ? 'available' : 'unavailable'
+      geocoding: GEOCODING_CONFIG.enabled 
+        ? `available (${GEOCODING_CONFIG.provider})` 
+        : 'unavailable'
     });
   } catch (error) {
     res.status(500).json({ 
@@ -1628,7 +1748,10 @@ app.listen(PORT, () => {
   }
   
   if (GEOCODING_CONFIG.enabled) {
-    console.log(`Geocoding: Locationiq ✓ Configured`);
+    const providerName = GEOCODING_CONFIG.provider === 'google' 
+      ? 'Google Maps Geocoding' 
+      : 'Locationiq';
+    console.log(`Geocoding: ${providerName} ✓ Configured`);
   } else {
     console.log(`Geocoding: ⚠️  Not configured (set GEOCODING_API_KEY)`);
   }
