@@ -19,7 +19,7 @@ export function validateBangladeshPhone(phone: string): PhoneValidationResult {
   if (cleaned.length !== 11) {
     return {
       isValid: false,
-      formatted: phone,
+      formatted: cleaned,
       error: 'Phone number must be exactly 11 digits'
     };
   }
@@ -28,7 +28,7 @@ export function validateBangladeshPhone(phone: string): PhoneValidationResult {
   if (!cleaned.startsWith('01')) {
     return {
       isValid: false,
-      formatted: phone,
+      formatted: cleaned,
       error: 'Bangladesh phone numbers must start with 01'
     };
   }
@@ -40,7 +40,7 @@ export function validateBangladeshPhone(phone: string): PhoneValidationResult {
   if (!validPrefixes.includes(prefix)) {
     return {
       isValid: false,
-      formatted: phone,
+      formatted: cleaned,
       error: 'Invalid Bangladesh operator prefix'
     };
   }
@@ -57,7 +57,7 @@ export function validateBangladeshPhone(phone: string): PhoneValidationResult {
 export function formatPhoneDisplay(phone: string): string {
   const cleaned = phone.replace(/\D/g, '');
   
-  if (cleaned.length === 11) {
+  if (cleaned.length === 11 && cleaned.startsWith('01')) {
     return `${cleaned.substring(0, 5)}-${cleaned.substring(5)}`;
   }
   
@@ -71,9 +71,15 @@ export function formatPhoneWithCountryCode(phone: string): string {
   const cleaned = phone.replace(/\D/g, '');
   
   if (cleaned.length === 11 && cleaned.startsWith('01')) {
-    // Remove the leading 0 and add +880
-    const withoutZero = cleaned.substring(1);
-    return `+880 ${withoutZero.substring(0, 4)}-${withoutZero.substring(4)}`;
+    // Validate operator prefix before formatting
+    const validPrefixes = ['013', '014', '015', '016', '017', '018', '019'];
+    const prefix = cleaned.substring(0, 3);
+    
+    if (validPrefixes.includes(prefix)) {
+      // Remove the leading 0 and add +880
+      const withoutZero = cleaned.substring(1);
+      return `+880 ${withoutZero.substring(0, 4)}-${withoutZero.substring(4)}`;
+    }
   }
   
   return phone;
