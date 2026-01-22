@@ -597,15 +597,15 @@ export function AdminDonorList({ onBack }: Props) {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Age *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Age <span className="text-xs font-normal text-gray-500">(Auto-calculated from Date of Birth)</span></label>
                     <input
                       type="number"
                       value={editFormData.age}
-                      onChange={(e) => setEditFormData({ ...editFormData, age: e.target.value })}
-                      min="18"
-                      max="65"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                      readOnly
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
                     />
+                    <p className="text-xs text-gray-500 mt-1">Age is calculated from date of birth. Must be between 18-65 years.</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Gender *</label>

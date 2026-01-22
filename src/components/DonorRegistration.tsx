@@ -79,15 +79,15 @@ export function DonorRegistration({ onSuccess }: Props) {
       return false;
     }
 
-    // Validate age - either dateOfBirth or age must be provided
-    if (!formData.dateOfBirth && !formData.age) {
-      setError('Please provide either date of birth or age');
+    // Validate age - dateOfBirth is now required since age is auto-calculated
+    if (!formData.dateOfBirth) {
+      setError('Date of Birth is required');
       return false;
     }
 
     const age = parseInt(formData.age);
     if (isNaN(age) || age < 18) {
-      setError('Age must be 18 or above');
+      setError('You must be 18 or above to donate blood');
       return false;
     }
 
@@ -173,23 +173,7 @@ export function DonorRegistration({ onSuccess }: Props) {
     }
   };
 
-  const getCurrentLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setFormData(prev => ({
-            ...prev,
-            latitude: position.coords.latitude.toFixed(6),
-            longitude: position.coords.longitude.toFixed(6),
-          }));
-        },
-        (error) => {
-          console.error('Error getting location:', error);
-          setError('Could not get your location. Please enter manually if needed.');
-        }
-      );
-    }
-  };
+
 
   return (
     <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-6 md:p-8">
@@ -240,7 +224,7 @@ export function DonorRegistration({ onSuccess }: Props) {
             <div>
               <label className="block text-sm md:text-base font-semibold text-gray-700 mb-2 flex items-center gap-1">
                 <Calendar size={16} className="text-red-600" />
-                Date of Birth (Optional)
+                Date of Birth *
               </label>
               <input
                 type="date"
@@ -249,26 +233,24 @@ export function DonorRegistration({ onSuccess }: Props) {
                 onChange={handleChange}
                 max={new Date().toISOString().split('T')[0]}
                 className="w-full px-4 py-3 text-base min-h-[44px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                required
               />
-              <p className="text-xs md:text-sm text-gray-700 mt-1">Age will be calculated automatically</p>
+              <p className="text-xs md:text-sm text-gray-700 mt-1">Required - Age will be calculated automatically</p>
             </div>
 
             <div>
               <label className="block text-sm md:text-base font-semibold text-gray-700 mb-2">
-                Age *
+                Age <span className="text-xs font-normal text-gray-500">(Auto-calculated from Date of Birth)</span>
               </label>
               <input
                 type="number"
                 name="age"
                 value={formData.age}
-                onChange={handleChange}
-                min="18"
-                max="65"
-                className="w-full px-4 py-3 text-base min-h-[44px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-gray-50"
-                required={!formData.dateOfBirth}
-                readOnly={!!formData.dateOfBirth}
+                readOnly
+                disabled
+                className="w-full px-4 py-3 text-base min-h-[44px] border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
               />
-              <p className="text-xs md:text-sm text-gray-700 mt-1">Must be between 18-65 years{formData.dateOfBirth ? ' (auto-calculated)' : ''}</p>
+              <p className="text-xs md:text-sm text-gray-700 mt-1">Automatically calculated from your date of birth. Must be between 18-65 years.</p>
             </div>
 
             <div>
@@ -465,38 +447,12 @@ export function DonorRegistration({ onSuccess }: Props) {
               <input
                 type="number"
                 step="0.00000001"
-                name="latitude"
-                value={formData.latitude}
-                onChange={handleChange}
-                placeholder="e.g., 23.8103"
-                className="w-full px-4 py-3 text-base min-h-[44px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm md:text-base font-semibold text-gray-700 mb-2">
-                Longitude (Optional)
-              </label>
-              <input
-                type="number"
-                step="0.00000001"
                 name="longitude"
                 value={formData.longitude}
                 onChange={handleChange}
                 placeholder="e.g., 90.4125"
                 className="w-full px-4 py-3 text-base min-h-[44px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
               />
-            </div>
-
-            <div className="md:col-span-2">
-              <button
-                type="button"
-                onClick={getCurrentLocation}
-                className="text-xs md:text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
-              >
-                <MapPin size={16} />
-                Get Current Location
-              </button>
             </div>
           </div>
         </div>

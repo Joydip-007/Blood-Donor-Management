@@ -71,15 +71,15 @@ export function AdminAddDonor({ onBack, onSuccess }: Props) {
       return false;
     }
 
-    // Validate age - either dateOfBirth or age must be provided
-    if (!formData.dateOfBirth && !formData.age) {
-      setError('Please provide either date of birth or age');
+    // Validate age - dateOfBirth is now required since age is auto-calculated
+    if (!formData.dateOfBirth) {
+      setError('Date of Birth is required');
       return false;
     }
 
     const age = parseInt(formData.age);
     if (isNaN(age) || age < 18) {
-      setError('Age must be 18 or above');
+      setError('Donor must be 18 or above');
       return false;
     }
 
@@ -224,7 +224,7 @@ export function AdminAddDonor({ onBack, onSuccess }: Props) {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
                   <Calendar size={16} className="text-red-600" />
-                  Date of Birth (Optional)
+                  Date of Birth *
                 </label>
                 <input
                   type="date"
@@ -233,26 +233,24 @@ export function AdminAddDonor({ onBack, onSuccess }: Props) {
                   onChange={handleChange}
                   max={new Date().toISOString().split('T')[0]}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                  required
                 />
-                <p className="text-xs text-gray-500 mt-1">Age will be calculated automatically</p>
+                <p className="text-xs text-gray-500 mt-1">Required - Age will be calculated automatically</p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Age *
+                  Age <span className="text-xs font-normal text-gray-500">(Auto-calculated from Date of Birth)</span>
                 </label>
                 <input
                   type="number"
                   name="age"
                   value={formData.age}
-                  onChange={handleChange}
-                  min="18"
-                  max="65"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-gray-50"
-                  required={!formData.dateOfBirth}
-                  readOnly={!!formData.dateOfBirth}
+                  readOnly
+                  disabled
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
                 />
-                <p className="text-xs text-gray-500 mt-1">Must be between 18-65 years{formData.dateOfBirth ? ' (auto-calculated)' : ''}</p>
+                <p className="text-xs text-gray-500 mt-1">Automatically calculated from date of birth. Must be between 18-65 years.</p>
               </div>
 
               <div>
