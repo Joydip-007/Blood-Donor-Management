@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { AlertCircle, Phone, MapPin, Droplet, Clock, User, Building } from 'lucide-react';
 import { API_BASE_URL } from '../utils/api';
 import { BloodGroup, MatchedDonor } from '../types';
-import { validateBangladeshPhone } from '../utils/phoneUtils';
+import { validateBangladeshPhone, cleanPhoneNumber, getPhoneErrorMessage } from '../utils/phoneUtils';
 
 export function EmergencyRequest() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [matchedDonors, setMatchedDonors] = useState<MatchedDonor[]>([]);
   const [requestCreated, setRequestCreated] = useState(false);
+  const [contactPhoneError, setContactPhoneError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     patientName: '',
@@ -386,14 +387,35 @@ export function EmergencyRequest() {
                 <input
                   type="tel"
                   value={formData.contactPhone}
-                  onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value.replace(/\D/g, '').slice(0, 11) })}
-                  placeholder="01XXXXXXXXX (11 digits)"
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '').slice(0, 11);
+                    setFormData({ ...formData, contactPhone: value });
+                    
+                    // Validate on change
+                    if (value) {
+                      setContactPhoneError(getPhoneErrorMessage(value));
+                    } else {
+                      setContactPhoneError(null);
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const cleaned = cleanPhoneNumber(e.target.value);
+                    if (cleaned) {
+                      setFormData({ ...formData, contactPhone: cleaned });
+                    }
+                  }}
+                  placeholder="01XXX-XXXXXX"
                   pattern="^01[3-9]\d{8}$"
                   maxLength={11}
                   minLength={11}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-base min-h-[44px]"
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 text-base min-h-[44px] ${
+                    contactPhoneError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-red-500'
+                  }`}
                   required
                 />
+                {contactPhoneError && (
+                  <p className="text-xs text-red-600 mt-1">{contactPhoneError}</p>
+                )}
                 <p className="text-xs text-gray-500 mt-1">
                   Enter 11-digit Bangladesh mobile number starting with 01
                 </p>

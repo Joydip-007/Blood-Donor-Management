@@ -8,6 +8,19 @@ export interface PhoneValidationResult {
 }
 
 /**
+ * Valid Bangladesh mobile operator prefixes
+ */
+const BD_MOBILE_PREFIXES = [
+  '013', // Grameenphone
+  '014', // Banglalink (Ollo)
+  '015', // Teletalk
+  '016', // Airtel
+  '017', // Grameenphone
+  '018', // Robi
+  '019', // Banglalink
+];
+
+/**
  * Validate Bangladesh mobile number
  * Format: 01[3-9]XXXXXXXX (11 digits)
  */
@@ -29,15 +42,18 @@ export function validateBangladeshPhone(phone: string): PhoneValidationResult {
     return { isValid: false, error: 'Phone number must start with 01' };
   }
 
-  // Check third digit (must be 3-9)
-  const thirdDigit = parseInt(cleaned.charAt(2), 10);
-  if (thirdDigit < 3 || thirdDigit > 9) {
-    return { isValid: false, error: 'Invalid phone number format' };
-  }
-
   // Check if all characters are digits
   if (!/^\d+$/.test(cleaned)) {
     return { isValid: false, error: 'Phone number must contain only digits' };
+  }
+
+  // Check if prefix is valid
+  const prefix = cleaned.substring(0, 3);
+  if (!BD_MOBILE_PREFIXES.includes(prefix)) {
+    return { 
+      isValid: false, 
+      error: `Invalid operator prefix. Must start with: ${BD_MOBILE_PREFIXES.join(', ')}` 
+    };
   }
 
   return { isValid: true };
@@ -99,4 +115,12 @@ export function getOperatorName(phone: string): string {
   };
   
   return operators[prefix] || 'Unknown';
+}
+
+/**
+ * Get phone validation error message (returns null if valid)
+ */
+export function getPhoneErrorMessage(phone: string): string | null {
+  const result = validateBangladeshPhone(phone);
+  return result.isValid ? null : (result.error || 'Invalid phone number');
 }

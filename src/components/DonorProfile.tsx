@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { API_BASE_URL } from '../utils/api';
 import { Donor, BloodGroup } from '../types';
 import { geocodeLocation, parseCoordinate } from '../utils/geocoding';
-import { validateBangladeshPhone } from '../utils/phoneUtils';
+import { validateBangladeshPhone, formatPhoneForDisplay, cleanPhoneNumber, getPhoneErrorMessage } from '../utils/phoneUtils';
 
 export function DonorProfile() {
   const { token } = useAuth();
@@ -14,6 +14,8 @@ export function DonorProfile() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isGeocoding, setIsGeocoding] = useState(false);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [alternatePhoneError, setAlternatePhoneError] = useState<string | null>(null);
   
   const [editForm, setEditForm] = useState({
     phone: '',
@@ -360,7 +362,7 @@ export function DonorProfile() {
               <Phone size={18} className="text-gray-400 mt-1" />
               <div>
                 <p className="text-sm text-gray-700">Primary Phone</p>
-                <p className="font-medium">{donor.phone}</p>
+                <p className="font-medium">{formatPhoneForDisplay(donor.phone)}</p>
               </div>
             </div>
             {donor.alternatePhone && (
@@ -368,7 +370,7 @@ export function DonorProfile() {
                 <Phone size={18} className="text-gray-400 mt-1" />
                 <div>
                   <p className="text-sm text-gray-700">Alternate Phone</p>
-                  <p className="font-medium">{donor.alternatePhone}</p>
+                  <p className="font-medium">{formatPhoneForDisplay(donor.alternatePhone)}</p>
                 </div>
               </div>
             )}
@@ -392,14 +394,35 @@ export function DonorProfile() {
               <input
                 type="tel"
                 value={editForm.phone}
-                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value.replace(/\D/g, '').slice(0, 11) })}
-                placeholder="01XXXXXXXXX (11 digits)"
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, '').slice(0, 11);
+                  setEditForm({ ...editForm, phone: value });
+                  
+                  // Validate on change
+                  if (value) {
+                    setPhoneError(getPhoneErrorMessage(value));
+                  } else {
+                    setPhoneError(null);
+                  }
+                }}
+                onBlur={(e) => {
+                  const cleaned = cleanPhoneNumber(e.target.value);
+                  if (cleaned) {
+                    setEditForm({ ...editForm, phone: cleaned });
+                  }
+                }}
+                placeholder="01XXX-XXXXXX"
                 pattern="^01[3-9]\d{8}$"
                 maxLength={11}
                 minLength={11}
-                className="w-full px-4 py-3 text-base min-h-[44px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                className={`w-full px-4 py-3 text-base min-h-[44px] border rounded-lg focus:outline-none focus:ring-2 ${
+                  phoneError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-red-500'
+                }`}
                 required
               />
+              {phoneError && (
+                <p className="text-xs text-red-600 mt-1">{phoneError}</p>
+              )}
               <p className="text-xs text-gray-500 mt-1">
                 Enter 11-digit Bangladesh mobile number starting with 01
               </p>
@@ -411,13 +434,34 @@ export function DonorProfile() {
               <input
                 type="tel"
                 value={editForm.alternatePhone}
-                onChange={(e) => setEditForm({ ...editForm, alternatePhone: e.target.value.replace(/\D/g, '').slice(0, 11) })}
-                placeholder="01XXXXXXXXX (11 digits)"
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, '').slice(0, 11);
+                  setEditForm({ ...editForm, alternatePhone: value });
+                  
+                  // Validate if not empty
+                  if (value) {
+                    setAlternatePhoneError(getPhoneErrorMessage(value));
+                  } else {
+                    setAlternatePhoneError(null);
+                  }
+                }}
+                onBlur={(e) => {
+                  const cleaned = cleanPhoneNumber(e.target.value);
+                  if (cleaned) {
+                    setEditForm({ ...editForm, alternatePhone: cleaned });
+                  }
+                }}
+                placeholder="01XXX-XXXXXX"
                 pattern="^01[3-9]\d{8}$"
                 maxLength={11}
                 minLength={11}
-                className="w-full px-4 py-3 text-base min-h-[44px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                className={`w-full px-4 py-3 text-base min-h-[44px] border rounded-lg focus:outline-none focus:ring-2 ${
+                  alternatePhoneError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-red-500'
+                }`}
               />
+              {alternatePhoneError && (
+                <p className="text-xs text-red-600 mt-1">{alternatePhoneError}</p>
+              )}
               <p className="text-xs text-gray-500 mt-1">
                 Optional second contact number (11 digits)
               </p>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, MapPin, Droplet, Phone, Filter, Map as MapIcon } from 'lucide-react';
 import { API_BASE_URL } from '../utils/api';
 import { BloodGroup, Donor } from '../types';
+import { formatPhoneForDisplay } from '../utils/phoneUtils';
 
 export function DonorSearch() {
   const [donors, setDonors] = useState<Donor[]>([]);
@@ -234,11 +235,11 @@ export function DonorSearch() {
                       </div>
                       {donor.isAvailable && (
                         <a
-                          href={`tel:${donor.phone}`}
+                          href={`tel:${formatPhoneForDisplay(donor.phone)}`}
                           className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium min-h-[44px] pt-2"
                         >
                           <Phone size={14} />
-                          {donor.phone}
+                          {formatPhoneForDisplay(donor.phone)}
                         </a>
                       )}
                     </div>
@@ -290,11 +291,11 @@ export function DonorSearch() {
                         <td className="px-4 py-4 text-sm">
                           {donor.isAvailable ? (
                             <a
-                              href={`tel:${donor.phone}`}
+                              href={`tel:${formatPhoneForDisplay(donor.phone)}`}
                               className="text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium"
                             >
                               <Phone size={14} />
-                              {donor.phone}
+                              {formatPhoneForDisplay(donor.phone)}
                             </a>
                           ) : (
                             <span className="text-gray-400">Not available</span>
@@ -366,11 +367,11 @@ export function DonorSearch() {
                       </div>
                       {donor.isAvailable && (
                         <a
-                          href={`tel:${donor.phone}`}
+                          href={`tel:${formatPhoneForDisplay(donor.phone)}`}
                           className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium min-h-[44px] pt-2"
                         >
                           <Phone size={14} />
-                          {donor.phone}
+                          {formatPhoneForDisplay(donor.phone)}
                         </a>
                       )}
                     </div>

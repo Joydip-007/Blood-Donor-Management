@@ -270,11 +270,45 @@ function isValidBangladeshPhone(phone) {
 }
 
 /**
- * Clean phone number (remove spaces/dashes)
+ * Valid Bangladesh mobile operator prefixes
+ */
+const BD_MOBILE_PREFIXES = ['013', '014', '015', '016', '017', '018', '019'];
+
+/**
+ * Validate Bangladesh phone number (11 digits, starts with 01)
+ */
+function isValidBangladeshPhone(phone) {
+  if (!phone) return false;
+  
+  // Remove any non-digit characters
+  const cleaned = phone.replace(/\D/g, '');
+  
+  // Must be exactly 11 digits
+  if (cleaned.length !== 11) return false;
+  
+  // Must start with 01
+  if (!cleaned.startsWith('01')) return false;
+  
+  // Check if prefix is valid
+  const prefix = cleaned.substring(0, 3);
+  return BD_MOBILE_PREFIXES.includes(prefix);
+}
+
+/**
+ * Clean phone number (remove spaces/dashes and convert from +880)
  */
 function cleanPhoneNumber(phone) {
   if (!phone) return '';
-  return phone.replace(/[\s-]/g, '');
+  
+  // Remove all non-digit characters
+  let cleaned = phone.replace(/\D/g, '');
+  
+  // If starts with 880 (country code), add 0 prefix
+  if (cleaned.startsWith('880') && cleaned.length === 13) {
+    cleaned = '0' + cleaned.substring(3);
+  }
+  
+  return cleaned;
 }
 
 // Send OTP via email using Resend

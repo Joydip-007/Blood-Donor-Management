@@ -5,7 +5,7 @@ import { API_BASE_URL } from '../utils/api';
 import { BloodGroup } from '../types';
 import { calculateAge } from '../utils/helpers';
 import { geocodeLocation, parseCoordinate } from '../utils/geocoding';
-import { validateBangladeshPhone } from '../utils/phoneUtils';
+import { validateBangladeshPhone, formatPhoneForDisplay, cleanPhoneNumber, getPhoneErrorMessage } from '../utils/phoneUtils';
 
 interface Props {
   onSuccess: () => void;
@@ -16,6 +16,8 @@ export function DonorRegistration({ onSuccess }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [isGeocoding, setIsGeocoding] = useState(false);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [alternatePhoneError, setAlternatePhoneError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -334,14 +336,33 @@ export function DonorRegistration({ onSuccess }: Props) {
                 onChange={(e) => {
                   const value = e.target.value.replace(/\D/g, '').slice(0, 11);
                   setFormData(prev => ({ ...prev, phone: value }));
+                  
+                  // Validate on change
+                  if (value) {
+                    setPhoneError(getPhoneErrorMessage(value));
+                  } else {
+                    setPhoneError(null);
+                  }
                 }}
-                placeholder="01XXXXXXXXX (11 digits)"
+                onBlur={(e) => {
+                  // Clean on blur
+                  const cleaned = cleanPhoneNumber(e.target.value);
+                  if (cleaned) {
+                    setFormData(prev => ({ ...prev, phone: cleaned }));
+                  }
+                }}
+                placeholder="01XXX-XXXXXX"
                 pattern="^01[3-9]\d{8}$"
                 maxLength={11}
                 minLength={11}
-                className="w-full px-4 py-3 text-base min-h-[44px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                className={`w-full px-4 py-3 text-base min-h-[44px] border rounded-lg focus:outline-none focus:ring-2 ${
+                  phoneError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-red-500'
+                }`}
                 required
               />
+              {phoneError && (
+                <p className="text-xs text-red-600 mt-1">{phoneError}</p>
+              )}
               <p className="text-xs text-gray-500 mt-1">
                 Enter 11-digit Bangladesh mobile number starting with 01
               </p>
@@ -358,13 +379,31 @@ export function DonorRegistration({ onSuccess }: Props) {
                 onChange={(e) => {
                   const value = e.target.value.replace(/\D/g, '').slice(0, 11);
                   setFormData(prev => ({ ...prev, alternatePhone: value }));
+                  
+                  // Validate if not empty
+                  if (value) {
+                    setAlternatePhoneError(getPhoneErrorMessage(value));
+                  } else {
+                    setAlternatePhoneError(null);
+                  }
                 }}
-                placeholder="01XXXXXXXXX (11 digits)"
+                onBlur={(e) => {
+                  const cleaned = cleanPhoneNumber(e.target.value);
+                  if (cleaned) {
+                    setFormData(prev => ({ ...prev, alternatePhone: cleaned }));
+                  }
+                }}
+                placeholder="01XXX-XXXXXX"
                 pattern="^01[3-9]\d{8}$"
                 maxLength={11}
                 minLength={11}
-                className="w-full px-4 py-3 text-base min-h-[44px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                className={`w-full px-4 py-3 text-base min-h-[44px] border rounded-lg focus:outline-none focus:ring-2 ${
+                  alternatePhoneError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-red-500'
+                }`}
               />
+              {alternatePhoneError && (
+                <p className="text-xs text-red-600 mt-1">{alternatePhoneError}</p>
+              )}
               <p className="text-xs text-gray-500 mt-1">
                 Optional second contact number (11 digits)
               </p>
