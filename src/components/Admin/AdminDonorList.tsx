@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { API_BASE_URL } from '../../utils/api';
 import { Donor, BloodGroup } from '../../types';
 import { parseCoordinate } from '../../utils/geocoding';
+import { validateBangladeshPhone } from '../../utils/phoneUtils';
 
 interface Props {
   onBack: () => void;
@@ -116,6 +117,22 @@ export function AdminDonorList({ onBack }: Props) {
 
   const handleEditSubmit = async () => {
     if (!editingDonor) return;
+
+    // Validate primary phone
+    const phoneValidation = validateBangladeshPhone(editFormData.phone);
+    if (!phoneValidation.isValid) {
+      setError(phoneValidation.error || 'Primary phone must be a valid 11-digit Bangladesh number starting with 01');
+      return;
+    }
+
+    // Validate alternate phone if provided
+    if (editFormData.alternatePhone) {
+      const altPhoneValidation = validateBangladeshPhone(editFormData.alternatePhone);
+      if (!altPhoneValidation.isValid) {
+        setError(altPhoneValidation.error || 'Alternate phone must be a valid 11-digit Bangladesh number starting with 01');
+        return;
+      }
+    }
 
     setEditLoading(true);
     setError('');
@@ -658,22 +675,41 @@ export function AdminDonorList({ onBack }: Props) {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Primary Phone *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Primary Phone * <span className="text-xs font-normal text-gray-500">(Bangladesh)</span>
+                    </label>
                     <input
                       type="tel"
                       value={editFormData.phone}
-                      onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                      onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value.replace(/\D/g, '').slice(0, 11) })}
+                      placeholder="01XXXXXXXXX (11 digits)"
+                      pattern="^01[3-9]\d{8}$"
+                      maxLength={11}
+                      minLength={11}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                      required
                     />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Enter 11-digit Bangladesh mobile number starting with 01
+                    </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Alternate Phone</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Alternate Phone (Optional) <span className="text-xs font-normal text-gray-500">(Bangladesh)</span>
+                    </label>
                     <input
                       type="tel"
                       value={editFormData.alternatePhone}
-                      onChange={(e) => setEditFormData({ ...editFormData, alternatePhone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                      onChange={(e) => setEditFormData({ ...editFormData, alternatePhone: e.target.value.replace(/\D/g, '').slice(0, 11) })}
+                      placeholder="01XXXXXXXXX (11 digits)"
+                      pattern="^01[3-9]\d{8}$"
+                      maxLength={11}
+                      minLength={11}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                     />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Optional second contact number (11 digits)
+                    </p>
                   </div>
                 </div>
               </div>

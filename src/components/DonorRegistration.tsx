@@ -5,6 +5,7 @@ import { API_BASE_URL } from '../utils/api';
 import { BloodGroup } from '../types';
 import { calculateAge } from '../utils/helpers';
 import { geocodeLocation, parseCoordinate } from '../utils/geocoding';
+import { validateBangladeshPhone } from '../utils/phoneUtils';
 
 interface Props {
   onSuccess: () => void;
@@ -69,14 +70,20 @@ export function DonorRegistration({ onSuccess }: Props) {
       return false;
     }
 
-    if (!formData.phone.match(/^\d{10}$/)) {
-      setError('Phone number must be 10 digits');
+    // Validate primary phone
+    const phoneValidation = validateBangladeshPhone(formData.phone);
+    if (!phoneValidation.isValid) {
+      setError(phoneValidation.error || 'Primary phone must be a valid 11-digit Bangladesh number starting with 01');
       return false;
     }
 
-    if (formData.alternatePhone && !formData.alternatePhone.match(/^\d{10}$/)) {
-      setError('Alternate phone must be 10 digits');
-      return false;
+    // Validate alternate phone if provided
+    if (formData.alternatePhone) {
+      const altPhoneValidation = validateBangladeshPhone(formData.alternatePhone);
+      if (!altPhoneValidation.isValid) {
+        setError(altPhoneValidation.error || 'Alternate phone must be a valid 11-digit Bangladesh number starting with 01');
+        return false;
+      }
     }
 
     // Validate age - dateOfBirth is now required since age is auto-calculated
@@ -318,37 +325,49 @@ export function DonorRegistration({ onSuccess }: Props) {
             <div>
               <label className="block text-sm md:text-base font-semibold text-gray-700 mb-2 flex items-center gap-1">
                 <Phone size={16} />
-                Primary Phone *
+                Primary Phone * <span className="text-xs font-normal text-gray-500">(Bangladesh)</span>
               </label>
               <input
                 type="tel"
                 name="phone"
                 value={formData.phone}
                 onChange={(e) => {
-                  const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                  const value = e.target.value.replace(/\D/g, '').slice(0, 11);
                   setFormData(prev => ({ ...prev, phone: value }));
                 }}
-                placeholder="10-digit number"
+                placeholder="01XXXXXXXXX (11 digits)"
+                pattern="^01[3-9]\d{8}$"
+                maxLength={11}
+                minLength={11}
                 className="w-full px-4 py-3 text-base min-h-[44px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                 required
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Enter 11-digit Bangladesh mobile number starting with 01
+              </p>
             </div>
 
             <div>
               <label className="block text-sm md:text-base font-semibold text-gray-700 mb-2">
-                Alternate Phone (Optional)
+                Alternate Phone (Optional) <span className="text-xs font-normal text-gray-500">(Bangladesh)</span>
               </label>
               <input
                 type="tel"
                 name="alternatePhone"
                 value={formData.alternatePhone}
                 onChange={(e) => {
-                  const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                  const value = e.target.value.replace(/\D/g, '').slice(0, 11);
                   setFormData(prev => ({ ...prev, alternatePhone: value }));
                 }}
-                placeholder="10-digit number"
+                placeholder="01XXXXXXXXX (11 digits)"
+                pattern="^01[3-9]\d{8}$"
+                maxLength={11}
+                minLength={11}
                 className="w-full px-4 py-3 text-base min-h-[44px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Optional second contact number (11 digits)
+              </p>
             </div>
           </div>
         </div>
