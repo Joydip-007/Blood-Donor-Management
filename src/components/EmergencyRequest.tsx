@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AlertCircle, Phone, MapPin, Droplet, Clock, User, Building } from 'lucide-react';
 import { API_BASE_URL } from '../utils/api';
 import { BloodGroup, MatchedDonor } from '../types';
+import { validateBangladeshPhone } from '../utils/phoneUtils';
 
 export function EmergencyRequest() {
   const [loading, setLoading] = useState(false);
@@ -43,8 +44,9 @@ export function EmergencyRequest() {
 
     try {
       // Validate phone number
-      if (!formData.contactPhone.match(/^\d{10}$/)) {
-        throw new Error('Contact phone must be 10 digits');
+      const phoneValidation = validateBangladeshPhone(formData.contactPhone);
+      if (!phoneValidation.isValid) {
+        throw new Error(phoneValidation.error || 'Contact phone must be a valid 11-digit Bangladesh number starting with 01');
       }
 
       const response = await fetch(
@@ -379,16 +381,22 @@ export function EmergencyRequest() {
 
               <div>
                 <label className="block text-sm md:text-base font-semibold text-gray-700 mb-2">
-                  Contact Phone *
+                  Contact Phone * <span className="text-xs font-normal text-gray-500">(Bangladesh)</span>
                 </label>
                 <input
                   type="tel"
                   value={formData.contactPhone}
-                  onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
-                  placeholder="10-digit number"
+                  onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value.replace(/\D/g, '').slice(0, 11) })}
+                  placeholder="01XXXXXXXXX (11 digits)"
+                  pattern="^01[3-9]\d{8}$"
+                  maxLength={11}
+                  minLength={11}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-base min-h-[44px]"
                   required
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Enter 11-digit Bangladesh mobile number starting with 01
+                </p>
               </div>
 
               <div className="md:col-span-2">
