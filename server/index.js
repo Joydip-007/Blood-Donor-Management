@@ -1753,7 +1753,7 @@ app.listen(PORT, () => {
       : 'Locationiq';
     console.log(`Geocoding: ${providerName} ✓ Configured`);
   } else {
-    console.log(`Geocoding: ⚠️  Not configured (set GEOCODING_API_KEY and GEOCODING_PROVIDER)`);
+    console.log(`Geocoding: ⚠️  Not configured (set GEOCODING_API_KEY)`);
   }
 });
 
