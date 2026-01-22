@@ -118,36 +118,111 @@ The system follows the ERD structure with the following tables:
 - **Blood Compatibility Matching**: Uses BLOOD_COMPATIBILITY table to find compatible donors
 - **90-Day Availability Logic**: Donors become unavailable for 90 days after donation
 - **Location-based Search**: Find donors by city and area
-- **Geocoding**: Automatic coordinate fetching using Locationiq API
+- **Geocoding**: Automatic coordinate fetching using Google Maps or Locationiq API
 - **Soft Delete**: Donor profiles can be deactivated without losing data
 - **Normalized Database**: 3NF compliant schema matching the ERD
 
 ## 🗺️ Geocoding Configuration
 
-This application uses **Locationiq** for automatic geocoding of donor locations.
+This application supports two geocoding providers for automatic location coordinate detection.
 
-### Setup
+### Supported Providers
 
-1. **Get API Key:**
-   - Sign up at https://locationiq.com/
-   - Free tier includes 5,000 requests/day
+#### Option 1: Google Maps Geocoding API (Recommended)
 
-2. **Backend Configuration (Railway):**
+**Pros:**
+- ✅ Most accurate, especially for Bangladesh
+- ✅ Better address parsing
+- ✅ $200 free credits/month (~40,000 requests)
+- ✅ Highly reliable
+
+**Setup:**
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Enable **Geocoding API**
+3. Create an API key
+4. (Optional) Restrict the API key:
+   - API restrictions: Enable only "Geocoding API"
+   - Application restrictions: Add your domain
+
+**Environment Variables (Railway):**
+```bash
+GEOCODING_PROVIDER=google
+GEOCODING_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXX
+```
+
+#### Option 2: Locationiq
+
+**Pros:**
+- ✅ Free tier: 5,000 requests/day
+- ✅ No credit card required
+- ✅ Uses OpenStreetMap data
+
+**Setup:**
+1. Sign up at [Locationiq](https://locationiq.com/)
+2. Get your free API key
+
+**Environment Variables (Railway):**
+```bash
+GEOCODING_PROVIDER=locationiq
+GEOCODING_API_KEY=pk.xxxxxxxxxxxxxxxxxx
+```
+
+### Optional: Enable Fallback Provider
+
+If you want automatic fallback when primary provider fails:
+
+```bash
+ENABLE_GEOCODING_FALLBACK=true
+```
+
+This will try the alternative provider if the primary one fails.
+
+### Frontend Configuration (Vercel)
+
+No changes needed - the frontend calls the backend API endpoint which handles geocoding.
+
+Optional (if calling geocoding from frontend directly):
+```bash
+VITE_API_URL=https://your-backend.railway.app
+```
+
+### Testing Geocoding
+
+1. **Via API endpoint:**
    ```bash
-   GEOCODING_API_KEY=your_locationiq_api_key
+   curl -X POST https://your-backend.railway.app/api/geocode \
+     -H "Content-Type: application/json" \
+     -d '{"city": "Dhaka", "area": "Gulshan"}'
    ```
 
-3. **Frontend Configuration (Vercel):**
+2. **Via registration form:**
+   - Enter City: "Dhaka"
+   - Enter Area: "Gulshan"
+   - Click "Auto-fill Coordinates"
+   - Should populate: Lat: ~23.7925, Lng: ~90.4078
+
+3. **Check health endpoint:**
    ```bash
-   VITE_API_URL=https://your-backend.railway.app
+   curl https://your-backend.railway.app/api/health
    ```
+   Should show: `"geocoding": "available (google)"` or `"available (locationiq)"`
+
+### API Usage Limits
+
+| Provider | Free Tier | Rate Limit | Monthly Limit |
+|----------|-----------|------------|---------------|
+| **Google Maps** | $200 credits | No strict limit | ~40,000 requests |
+| **Locationiq** | Free | 2 req/sec | 5,000/day (150k/month) |
+
+For your blood donor app with typical usage, both should stay within free tier! 🎉
 
 ### Features
 
 - ✅ Auto-fill coordinates from city/area
 - ✅ Manual coordinate entry
 - ✅ Admin bulk geocoding for existing locations
-- ✅ Rate limiting (2 requests/second)
+- ✅ Automatic provider detection
+- ✅ Optional fallback to alternative provider
 
 ### Usage
 
