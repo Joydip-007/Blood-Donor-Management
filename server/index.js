@@ -1200,7 +1200,7 @@ app.post('/api/requests/create', async (req, res) => {
       hospitalName,
       city,
       area,
-      contactPhone,
+      contactPhone: cleanedContactPhone,
       createdAt: new Date().toISOString(),
       status: 'active'
     };
