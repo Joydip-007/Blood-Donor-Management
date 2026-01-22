@@ -1,63 +1,90 @@
 /**
- * Bangladesh Phone Number Utilities
+ * Bangladesh Phone Number Validation Utility
  */
 
 export interface PhoneValidationResult {
   isValid: boolean;
+  formatted: string;
   error?: string;
 }
 
 /**
- * Validate Bangladesh mobile number
- * Format: 01[3-9]XXXXXXXX (11 digits)
+ * Validate Bangladesh phone number (11 digits, starts with 01)
  */
 export function validateBangladeshPhone(phone: string): PhoneValidationResult {
-  if (!phone) {
-    return { isValid: false, error: 'Phone number is required' };
-  }
-
-  // Remove spaces and dashes
-  const cleaned = phone.replace(/[\s-]/g, '');
-
-  // Check length
+  // Remove all non-digit characters
+  const cleaned = phone.replace(/\D/g, '');
+  
+  // Check if it's 11 digits
   if (cleaned.length !== 11) {
-    return { isValid: false, error: 'Phone number must be exactly 11 digits' };
+    return {
+      isValid: false,
+      formatted: phone,
+      error: 'Phone number must be exactly 11 digits'
+    };
   }
-
+  
   // Check if it starts with 01
   if (!cleaned.startsWith('01')) {
-    return { isValid: false, error: 'Phone number must start with 01' };
+    return {
+      isValid: false,
+      formatted: phone,
+      error: 'Bangladesh phone numbers must start with 01'
+    };
   }
-
-  // Check third digit (must be 3-9)
-  const thirdDigit = parseInt(cleaned.charAt(2), 10);
-  if (thirdDigit < 3 || thirdDigit > 9) {
-    return { isValid: false, error: 'Invalid phone number format' };
+  
+  // Check if it has a valid operator prefix
+  const validPrefixes = ['013', '014', '015', '016', '017', '018', '019'];
+  const prefix = cleaned.substring(0, 3);
+  
+  if (!validPrefixes.includes(prefix)) {
+    return {
+      isValid: false,
+      formatted: phone,
+      error: 'Invalid Bangladesh operator prefix'
+    };
   }
-
-  // Check if all characters are digits
-  if (!/^\d+$/.test(cleaned)) {
-    return { isValid: false, error: 'Phone number must contain only digits' };
-  }
-
-  return { isValid: true };
+  
+  return {
+    isValid: true,
+    formatted: cleaned
+  };
 }
 
 /**
- * Format phone number for display
- * 01744423250 → +880 1744-423250
+ * Format phone number for display: 01XXX-XXXXXX
  */
-export function formatPhoneForDisplay(phone: string): string {
-  if (!phone) return '';
+export function formatPhoneDisplay(phone: string): string {
+  const cleaned = phone.replace(/\D/g, '');
   
-  const cleaned = phone.replace(/[\s-]/g, '');
-  
-  if (cleaned.startsWith('01') && cleaned.length === 11) {
-    // Remove leading 0 and add country code
-    return `+880 ${cleaned.slice(1, 5)}-${cleaned.slice(5)}`;
+  if (cleaned.length === 11) {
+    return `${cleaned.substring(0, 5)}-${cleaned.substring(5)}`;
   }
   
   return phone;
+}
+
+/**
+ * Format phone number with country code: +880 1XXX-XXXXXX
+ */
+export function formatPhoneWithCountryCode(phone: string): string {
+  const cleaned = phone.replace(/\D/g, '');
+  
+  if (cleaned.length === 11 && cleaned.startsWith('01')) {
+    // Remove the leading 0 and add +880
+    const withoutZero = cleaned.substring(1);
+    return `+880 ${withoutZero.substring(0, 4)}-${withoutZero.substring(4)}`;
+  }
+  
+  return phone;
+}
+
+/**
+ * Format phone number for display (legacy - kept for backwards compatibility)
+ * 01744423250 → +880 1744-423250
+ */
+export function formatPhoneForDisplay(phone: string): string {
+  return formatPhoneWithCountryCode(phone);
 }
 
 /**

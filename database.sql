@@ -55,13 +55,15 @@ CREATE TABLE DONOR (
 -- =============================================
 -- Table: CONTACT_NUMBER
 -- Description: Stores multiple contact numbers for donors
+-- Phone Format: 11-digit Bangladesh mobile (01XXX-XXXXXX)
+-- Valid prefixes: 013, 014, 015, 016, 017, 018, 019
 -- Relationships:
 --   - Has Numbers (1:N) -> DONOR (one donor can have multiple numbers)
 -- =============================================
 CREATE TABLE CONTACT_NUMBER (
     contact_id INT PRIMARY KEY AUTO_INCREMENT,
     donor_id INT NOT NULL,
-    phone_number VARCHAR(20) NOT NULL,
+    phone_number VARCHAR(20) NOT NULL,  -- Stores 11-digit Bangladesh mobile
     FOREIGN KEY (donor_id) REFERENCES DONOR(donor_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
