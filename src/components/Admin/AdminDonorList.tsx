@@ -597,7 +597,7 @@ export function AdminDonorList({ onBack }: Props) {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Age * <span className="text-xs font-normal text-gray-500">(Read-only)</span></label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Age <span className="text-xs font-normal text-gray-500">(Auto-calculated from Date of Birth)</span></label>
                     <input
                       type="number"
                       value={editFormData.age}
