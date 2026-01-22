@@ -258,23 +258,35 @@ function maskIdentifier(identifier) {
  * Validate Bangladesh phone number format
  * Must be 11 digits starting with 01[3-9]
  */
+/**
+ * Validate Bangladesh phone number (11 digits, starts with 01)
+ * Valid prefixes: 013, 014, 015, 016, 017, 018, 019
+ */
 function isValidBangladeshPhone(phone) {
   if (!phone) return false;
   
-  // Remove spaces and dashes
-  const cleaned = phone.replace(/[\s-]/g, '');
+  // Remove all non-digit characters
+  const cleaned = phone.replace(/\D/g, '');
   
-  // Check format: 01[3-9]XXXXXXXX (11 digits)
-  const phoneRegex = /^01[3-9]\d{8}$/;
-  return phoneRegex.test(cleaned);
+  // Check if it's 11 digits
+  if (cleaned.length !== 11) return false;
+  
+  // Check if it starts with 01
+  if (!cleaned.startsWith('01')) return false;
+  
+  // Check if it has a valid operator prefix
+  const validPrefixes = ['013', '014', '015', '016', '017', '018', '019'];
+  const prefix = cleaned.substring(0, 3);
+  
+  return validPrefixes.includes(prefix);
 }
 
 /**
- * Clean phone number (remove spaces/dashes)
+ * Clean phone number (remove all non-digits)
  */
 function cleanPhoneNumber(phone) {
   if (!phone) return '';
-  return phone.replace(/[\s-]/g, '');
+  return phone.replace(/\D/g, '');
 }
 
 // Send OTP via email using Resend
