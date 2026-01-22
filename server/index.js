@@ -248,6 +248,29 @@ function maskIdentifier(identifier) {
   }
 }
 
+/**
+ * Validate Bangladesh phone number format
+ * Must be 11 digits starting with 01[3-9]
+ */
+function isValidBangladeshPhone(phone) {
+  if (!phone) return false;
+  
+  // Remove spaces and dashes
+  const cleaned = phone.replace(/[\s-]/g, '');
+  
+  // Check format: 01[3-9]XXXXXXXX (11 digits)
+  const phoneRegex = /^01[3-9]\d{8}$/;
+  return phoneRegex.test(cleaned);
+}
+
+/**
+ * Clean phone number (remove spaces/dashes)
+ */
+function cleanPhoneNumber(phone) {
+  if (!phone) return '';
+  return phone.replace(/[\s-]/g, '');
+}
+
 // Send OTP via email using Resend
 async function sendOTPEmail(email, otp) {
   if (!resend) {
@@ -665,6 +688,24 @@ app.post('/api/donors/register', async (req, res) => {
 
     const { name, email, phone, alternatePhone, age, dateOfBirth, gender, bloodGroup, city, area, address, latitude, longitude } = req.body;
 
+    // Clean phone numbers
+    const cleanedPhone = cleanPhoneNumber(phone);
+    const cleanedAltPhone = alternatePhone ? cleanPhoneNumber(alternatePhone) : null;
+
+    // Validate primary phone
+    if (!isValidBangladeshPhone(cleanedPhone)) {
+      return res.status(400).json({ 
+        error: 'Invalid phone number. Must be 11 digits starting with 01 (e.g., 01744423250)' 
+      });
+    }
+
+    // Validate alternate phone if provided
+    if (cleanedAltPhone && !isValidBangladeshPhone(cleanedAltPhone)) {
+      return res.status(400).json({ 
+        error: 'Invalid alternate phone number. Must be 11 digits starting with 01' 
+      });
+    }
+
     // Calculate age from dateOfBirth if provided, otherwise use age field
     let finalAge = age;
     if (dateOfBirth) {
@@ -685,10 +726,10 @@ app.post('/api/donors/register', async (req, res) => {
       return res.status(400).json({ error: 'Email already registered' });
     }
 
-    // Check for duplicate phone
+    // Check for duplicate phone (use cleaned version)
     const [existingPhone] = await pool.execute(
       'SELECT cn.donor_id FROM CONTACT_NUMBER cn JOIN DONOR d ON cn.donor_id = d.donor_id WHERE cn.phone_number = ? AND d.is_active = TRUE',
-      [phone]
+      [cleanedPhone]
     );
     if (existingPhone.length > 0) {
       return res.status(400).json({ error: 'Phone number already registered' });
@@ -712,17 +753,17 @@ app.post('/api/donors/register', async (req, res) => {
 
     const donorId = result.insertId;
 
-    // Insert primary phone (per ERD: CONTACT_NUMBER table, 1:N relationship)
+    // Insert primary phone (use cleaned version)
     await pool.execute(
       'INSERT INTO CONTACT_NUMBER (donor_id, phone_number) VALUES (?, ?)',
-      [donorId, phone]
+      [donorId, cleanedPhone]
     );
 
-    // Insert alternate phone if provided
-    if (alternatePhone) {
+    // Insert alternate phone if provided (use cleaned version)
+    if (cleanedAltPhone) {
       await pool.execute(
         'INSERT INTO CONTACT_NUMBER (donor_id, phone_number) VALUES (?, ?)',
-        [donorId, alternatePhone]
+        [donorId, cleanedAltPhone]
       );
     }
 
@@ -735,8 +776,8 @@ app.post('/api/donors/register', async (req, res) => {
       id: donorId.toString(),
       name,
       email,
-      phone,
-      alternatePhone,
+      phone: cleanedPhone,
+      alternatePhone: cleanedAltPhone,
       age: finalAge,
       dateOfBirth: dateOfBirth || null,
       gender,
@@ -871,6 +912,27 @@ app.put('/api/donors/profile', async (req, res) => {
     }
 
     const updates = req.body;
+
+    // Validate phone numbers if provided
+    if (updates.phone) {
+      const cleanedPhone = cleanPhoneNumber(updates.phone);
+      if (!isValidBangladeshPhone(cleanedPhone)) {
+        return res.status(400).json({ 
+          error: 'Invalid phone number. Must be 11 digits starting with 01 (e.g., 01744423250)' 
+        });
+      }
+      updates.phone = cleanedPhone;
+    }
+
+    if (updates.alternatePhone) {
+      const cleanedAltPhone = cleanPhoneNumber(updates.alternatePhone);
+      if (!isValidBangladeshPhone(cleanedAltPhone)) {
+        return res.status(400).json({ 
+          error: 'Invalid alternate phone number. Must be 11 digits starting with 01' 
+        });
+      }
+      updates.alternatePhone = cleanedAltPhone;
+    }
 
     // Update location if changed
     if (updates.city || updates.area) {
@@ -1234,6 +1296,24 @@ app.post('/api/admin/donors/add', isAdmin, async (req, res) => {
   try {
     const { name, email, phone, alternatePhone, age, dateOfBirth, gender, bloodGroup, city, area, address, latitude, longitude } = req.body;
 
+    // Clean phone numbers
+    const cleanedPhone = cleanPhoneNumber(phone);
+    const cleanedAltPhone = alternatePhone ? cleanPhoneNumber(alternatePhone) : null;
+
+    // Validate primary phone
+    if (!isValidBangladeshPhone(cleanedPhone)) {
+      return res.status(400).json({ 
+        error: 'Invalid phone number. Must be 11 digits starting with 01 (e.g., 01744423250)' 
+      });
+    }
+
+    // Validate alternate phone if provided
+    if (cleanedAltPhone && !isValidBangladeshPhone(cleanedAltPhone)) {
+      return res.status(400).json({ 
+        error: 'Invalid alternate phone number. Must be 11 digits starting with 01' 
+      });
+    }
+
     // Calculate age from dateOfBirth if provided, otherwise use age field
     let finalAge = age;
     if (dateOfBirth) {
@@ -1254,10 +1334,10 @@ app.post('/api/admin/donors/add', isAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Email already registered' });
     }
 
-    // Check for duplicate phone
+    // Check for duplicate phone (use cleaned version)
     const [existingPhone] = await pool.execute(
       'SELECT cn.donor_id FROM CONTACT_NUMBER cn JOIN DONOR d ON cn.donor_id = d.donor_id WHERE cn.phone_number = ? AND d.is_active = TRUE',
-      [phone]
+      [cleanedPhone]
     );
     if (existingPhone.length > 0) {
       return res.status(400).json({ error: 'Phone number already registered' });
@@ -1281,17 +1361,17 @@ app.post('/api/admin/donors/add', isAdmin, async (req, res) => {
 
     const donorId = result.insertId;
 
-    // Insert primary phone (per ERD: CONTACT_NUMBER table, 1:N relationship)
+    // Insert primary phone (use cleaned version)
     await pool.execute(
       'INSERT INTO CONTACT_NUMBER (donor_id, phone_number) VALUES (?, ?)',
-      [donorId, phone]
+      [donorId, cleanedPhone]
     );
 
-    // Insert alternate phone if provided
-    if (alternatePhone) {
+    // Insert alternate phone if provided (use cleaned version)
+    if (cleanedAltPhone) {
       await pool.execute(
         'INSERT INTO CONTACT_NUMBER (donor_id, phone_number) VALUES (?, ?)',
-        [donorId, alternatePhone]
+        [donorId, cleanedAltPhone]
       );
     }
 
@@ -1299,8 +1379,8 @@ app.post('/api/admin/donors/add', isAdmin, async (req, res) => {
       id: donorId.toString(),
       name,
       email,
-      phone,
-      alternatePhone,
+      phone: cleanedPhone,
+      alternatePhone: cleanedAltPhone,
       age: finalAge,
       dateOfBirth: dateOfBirth || null,
       gender,
@@ -1406,6 +1486,28 @@ app.put('/api/admin/donors/:donorId', isAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Donor not found' });
     }
 
+    // Validate and clean phone numbers if provided
+    let cleanedPhone = phone;
+    let cleanedAltPhone = alternatePhone;
+
+    if (phone) {
+      cleanedPhone = cleanPhoneNumber(phone);
+      if (!isValidBangladeshPhone(cleanedPhone)) {
+        return res.status(400).json({ 
+          error: 'Invalid phone number. Must be 11 digits starting with 01 (e.g., 01744423250)' 
+        });
+      }
+    }
+
+    if (alternatePhone) {
+      cleanedAltPhone = cleanPhoneNumber(alternatePhone);
+      if (!isValidBangladeshPhone(cleanedAltPhone)) {
+        return res.status(400).json({ 
+          error: 'Invalid alternate phone number. Must be 11 digits starting with 01' 
+        });
+      }
+    }
+
     // Calculate age from dateOfBirth if provided
     let finalAge = age;
     if (dateOfBirth) {
@@ -1491,8 +1593,8 @@ app.put('/api/admin/donors/:donorId', isAdmin, async (req, res) => {
       );
     }
 
-    // Update phone numbers if provided
-    if (phone) {
+    // Update phone numbers if provided (use cleaned versions)
+    if (cleanedPhone) {
       const [existingContacts] = await pool.execute(
         'SELECT contact_id FROM CONTACT_NUMBER WHERE donor_id = ? ORDER BY contact_id',
         [donorId]
@@ -1500,19 +1602,19 @@ app.put('/api/admin/donors/:donorId', isAdmin, async (req, res) => {
 
       if (existingContacts.length > 0) {
         await pool.execute('UPDATE CONTACT_NUMBER SET phone_number = ? WHERE contact_id = ?', 
-          [phone, existingContacts[0].contact_id]);
+          [cleanedPhone, existingContacts[0].contact_id]);
       } else {
         await pool.execute('INSERT INTO CONTACT_NUMBER (donor_id, phone_number) VALUES (?, ?)', 
-          [donorId, phone]);
+          [donorId, cleanedPhone]);
       }
 
-      if (alternatePhone) {
+      if (cleanedAltPhone) {
         if (existingContacts.length > 1) {
           await pool.execute('UPDATE CONTACT_NUMBER SET phone_number = ? WHERE contact_id = ?', 
-            [alternatePhone, existingContacts[1].contact_id]);
+            [cleanedAltPhone, existingContacts[1].contact_id]);
         } else {
           await pool.execute('INSERT INTO CONTACT_NUMBER (donor_id, phone_number) VALUES (?, ?)', 
-            [donorId, alternatePhone]);
+            [donorId, cleanedAltPhone]);
         }
       }
     }
