@@ -30,6 +30,29 @@ const LEGEND_COLORS: Record<BloodGroup, string> = {
   'O-': '#00CC00',
 };
 
+// Map configuration constants
+const MAP_CONFIG = {
+  WIDTH: 800,
+  HEIGHT: 600,
+  SCALE: 2,
+  CIRCLE_RADIUS_METERS: 500,
+  CIRCLE_POINTS: 16,
+  // Approximate meters per degree latitude at the equator
+  METERS_PER_DEGREE: 111000,
+};
+
+// Zoom level thresholds based on coordinate spread
+const ZOOM_THRESHOLDS = [
+  { maxDiff: 10, zoom: 6 },
+  { maxDiff: 5, zoom: 7 },
+  { maxDiff: 2, zoom: 8 },
+  { maxDiff: 1, zoom: 9 },
+  { maxDiff: 0.5, zoom: 10 },
+  { maxDiff: 0.2, zoom: 11 },
+  { maxDiff: 0.1, zoom: 12 },
+  { maxDiff: 0, zoom: 13 },
+];
+
 export function DonorMap({ donors }: DonorMapProps) {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
@@ -72,23 +95,16 @@ export function DonorMap({ donors }: DonorMapProps) {
   const minLng = Math.min(...lngs);
   const maxDiff = Math.max(maxLat - minLat, maxLng - minLng);
 
-  let zoom: number;
-  if (maxDiff > 10) zoom = 6;
-  else if (maxDiff > 5) zoom = 7;
-  else if (maxDiff > 2) zoom = 8;
-  else if (maxDiff > 1) zoom = 9;
-  else if (maxDiff > 0.5) zoom = 10;
-  else if (maxDiff > 0.2) zoom = 11;
-  else if (maxDiff > 0.1) zoom = 12;
-  else zoom = 13;
+  // Find appropriate zoom level from thresholds
+  const zoom = ZOOM_THRESHOLDS.find(threshold => maxDiff > threshold.maxDiff)?.zoom || 13;
 
   // Generate circle points for a given location
-  const generateCircle = (lat: number, lng: number, radiusMeters = 500, points = 16): string => {
-    const radiusDegrees = radiusMeters / 111000; // Convert meters to degrees
+  const generateCircle = (lat: number, lng: number): string => {
+    const radiusDegrees = MAP_CONFIG.CIRCLE_RADIUS_METERS / MAP_CONFIG.METERS_PER_DEGREE;
     const circlePoints: string[] = [];
     
-    for (let i = 0; i <= points; i++) {
-      const angle = (i * 2 * Math.PI) / points;
+    for (let i = 0; i <= MAP_CONFIG.CIRCLE_POINTS; i++) {
+      const angle = (i * 2 * Math.PI) / MAP_CONFIG.CIRCLE_POINTS;
       const latOffset = radiusDegrees * Math.cos(angle);
       const lngOffset = (radiusDegrees * Math.sin(angle)) / Math.cos((lat * Math.PI) / 180);
       const pointLat = lat + latOffset;
@@ -105,8 +121,8 @@ export function DonorMap({ donors }: DonorMapProps) {
     const params = new URLSearchParams({
       center: `${centerLat},${centerLng}`,
       zoom: zoom.toString(),
-      size: '800x600',
-      scale: '2',
+      size: `${MAP_CONFIG.WIDTH}x${MAP_CONFIG.HEIGHT}`,
+      scale: MAP_CONFIG.SCALE.toString(),
       maptype: 'roadmap',
       key: apiKey,
     });
