@@ -59,10 +59,8 @@ export function DonorProfile() {
           lastDonationDate: data.donor.lastDonationDate ? new Date(data.donor.lastDonationDate).toISOString().split('T')[0] : '',
         });
         
-        // Clear any errors if profile loaded successfully
-        if (data.donor.isActive === false) {
-          setError('');
-        }
+        // Clear any errors on successful load
+        setError('');
       } else if (response.status === 401) {
         setError('Session expired. Please login again.');
       } else {
@@ -198,7 +196,10 @@ export function DonorProfile() {
   };
 
   const handleReactivate = async () => {
-    if (!confirm('Reactivate your account? You will appear in donor searches again.')) {
+    if (!confirm(
+      'Reactivate your account?\n\n' +
+      'You will appear in donor searches and emergency request matching again.'
+    )) {
       return;
     }
 

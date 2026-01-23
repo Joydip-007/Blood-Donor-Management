@@ -1004,7 +1004,6 @@ app.put('/api/donors/profile', async (req, res) => {
 });
 
 // Soft delete donor (per ERD: is_active flag)
-// Soft delete donor (per ERD: is_active flag)
 app.delete('/api/donors/profile', async (req, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
