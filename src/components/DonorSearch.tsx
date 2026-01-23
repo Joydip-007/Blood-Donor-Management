@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, MapPin, Droplet, Phone, Filter, Map as MapIcon } from 'lucide-react';
 import { API_BASE_URL } from '../utils/api';
 import { BloodGroup, Donor } from '../types';
+import { DonorMap } from './DonorMap';
 
 export function DonorSearch() {
   const [donors, setDonors] = useState<Donor[]>([]);
@@ -325,17 +326,8 @@ export function DonorSearch() {
 
           {donorsWithLocation.length > 0 ? (
             <div className="space-y-4 md:space-y-6">
-              {/* Map Placeholder */}
-              <div className="bg-gray-100 rounded-lg p-8 md:p-12 text-center border-2 border-dashed border-gray-300">
-                <MapIcon size={48} className="text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-700 font-medium mb-2 text-base md:text-lg">Interactive Map View</p>
-                <p className="text-sm md:text-base text-gray-600 mb-4">
-                  Displaying {donorsWithLocation.length} donor locations on map
-                </p>
-                <p className="text-xs md:text-sm text-gray-500">
-                  🗺️ Map integration available with Google Maps, Mapbox, or Leaflet
-                </p>
-              </div>
+              {/* Donor Location Map */}
+              <DonorMap donors={donorsWithLocation} />
 
               {/* Donor Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
