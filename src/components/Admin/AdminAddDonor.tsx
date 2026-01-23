@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { User, MapPin, Phone, Mail, Droplet, Calendar, AlertCircle, ArrowLeft, MapPinned } from 'lucide-react';
+import { User, MapPin, Phone, Mail, Droplet, Calendar, AlertCircle, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_BASE_URL } from '../../utils/api';
 import { BloodGroup } from '../../types';
 import { calculateAge } from '../../utils/helpers';
-import { geocodeLocation, parseCoordinate } from '../../utils/geocoding';
+import { autoGeocodeIfNeeded, parseCoordinate } from '../../utils/geocoding';
 import { validateBangladeshPhone } from '../../utils/phoneUtils';
 
 interface Props {
@@ -17,7 +17,6 @@ export function AdminAddDonor({ onBack, onSuccess }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [isGeocoding, setIsGeocoding] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -103,33 +102,6 @@ export function AdminAddDonor({ onBack, onSuccess }: Props) {
     return true;
   };
 
-  const handleGeocode = async () => {
-    if (!formData.city || !formData.area) {
-      alert('Please enter city and area first');
-      return;
-    }
-    
-    setIsGeocoding(true);
-    try {
-      const result = await geocodeLocation(formData.city, formData.area);
-      
-      if (result) {
-        setFormData({
-          ...formData,
-          latitude: result.latitude.toString(),
-          longitude: result.longitude.toString()
-        });
-        alert('✓ Coordinates found successfully!');
-      } else {
-        alert('Could not find coordinates. Please enter manually or try different city/area names.');
-      }
-    } catch (error) {
-      alert('Geocoding failed. Please enter coordinates manually.');
-    } finally {
-      setIsGeocoding(false);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -142,6 +114,14 @@ export function AdminAddDonor({ onBack, onSuccess }: Props) {
     setLoading(true);
 
     try {
+      // Automatically fetch coordinates if not provided
+      const { latitude, longitude } = await autoGeocodeIfNeeded(
+        formData.latitude,
+        formData.longitude,
+        formData.city,
+        formData.area
+      );
+
       const response = await fetch(
         `${API_BASE_URL}/admin/donors/add`,
         {
@@ -154,8 +134,8 @@ export function AdminAddDonor({ onBack, onSuccess }: Props) {
             ...formData,
             age: parseInt(formData.age),
             dateOfBirth: formData.dateOfBirth || undefined,
-            latitude: parseCoordinate(formData.latitude),
-            longitude: parseCoordinate(formData.longitude),
+            latitude: parseCoordinate(latitude),
+            longitude: parseCoordinate(longitude),
           }),
         }
       );
@@ -418,52 +398,9 @@ export function AdminAddDonor({ onBack, onSuccess }: Props) {
                   placeholder="Street address, landmark"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                 />
-              </div>
-
-              {/* Geocoding Button */}
-              <div className="md:col-span-2">
-                <button
-                  type="button"
-                  onClick={handleGeocode}
-                  disabled={!formData.city || !formData.area || isGeocoding}
-                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  <MapPinned size={18} />
-                  {isGeocoding ? 'Finding coordinates...' : 'Auto-fill Coordinates from Address'}
-                </button>
-                <p className="text-xs text-gray-500 mt-1 text-center">
-                  Click to automatically find latitude/longitude
+                <p className="text-xs text-gray-500 mt-1">
+                  📍 Location coordinates will be automatically determined from city and area
                 </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Latitude (Optional)
-                </label>
-                <input
-                  type="number"
-                  step="0.00000001"
-                  name="latitude"
-                  value={formData.latitude}
-                  onChange={handleChange}
-                  placeholder="e.g., 23.8103"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Longitude (Optional)
-                </label>
-                <input
-                  type="number"
-                  step="0.00000001"
-                  name="longitude"
-                  value={formData.longitude}
-                  onChange={handleChange}
-                  placeholder="e.g., 90.4125"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                />
               </div>
             </div>
           </div>

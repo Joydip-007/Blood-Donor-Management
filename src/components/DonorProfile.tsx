@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Edit2, Save, X, Phone, Mail, MapPin, Calendar, Droplet, AlertCircle, CheckCircle, UserX, MapPinned, Shield } from 'lucide-react';
+import { Edit2, Save, X, Phone, Mail, MapPin, Calendar, Droplet, AlertCircle, CheckCircle, UserX, Shield } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API_BASE_URL } from '../utils/api';
 import { Donor, BloodGroup } from '../types';
-import { geocodeLocation, parseCoordinate } from '../utils/geocoding';
+import { autoGeocodeIfNeeded, parseCoordinate } from '../utils/geocoding';
 import { validateBangladeshPhone } from '../utils/phoneUtils';
 
 export function DonorProfile() {
@@ -13,7 +13,6 @@ export function DonorProfile() {
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [isGeocoding, setIsGeocoding] = useState(false);
   const [isReactivating, setIsReactivating] = useState(false);
   
   const [editForm, setEditForm] = useState({
@@ -74,33 +73,6 @@ export function DonorProfile() {
     }
   };
 
-  const handleGeocode = async () => {
-    if (!editForm.city || !editForm.area) {
-      alert('Please enter city and area first');
-      return;
-    }
-    
-    setIsGeocoding(true);
-    try {
-      const result = await geocodeLocation(editForm.city, editForm.area);
-      
-      if (result) {
-        setEditForm({
-          ...editForm,
-          latitude: result.latitude.toString(),
-          longitude: result.longitude.toString()
-        });
-        alert('✓ Coordinates found successfully!');
-      } else {
-        alert('Could not find coordinates. Please enter manually.');
-      }
-    } catch (error) {
-      alert('Geocoding failed. Please enter coordinates manually.');
-    } finally {
-      setIsGeocoding(false);
-    }
-  };
-
   const handleUpdate = async () => {
     setError('');
     setSuccess('');
@@ -124,6 +96,14 @@ export function DonorProfile() {
     setLoading(true);
 
     try {
+      // Automatically fetch coordinates if not provided
+      const { latitude, longitude } = await autoGeocodeIfNeeded(
+        editForm.latitude,
+        editForm.longitude,
+        editForm.city,
+        editForm.area
+      );
+
       const response = await fetch(
         `${API_BASE_URL}/donors/profile`,
         {
@@ -134,8 +114,8 @@ export function DonorProfile() {
           },
           body: JSON.stringify({
             ...editForm,
-            latitude: parseCoordinate(editForm.latitude),
-            longitude: parseCoordinate(editForm.longitude),
+            latitude: parseCoordinate(latitude),
+            longitude: parseCoordinate(longitude),
             lastDonationDate: editForm.lastDonationDate || undefined,
           }),
         }
@@ -519,40 +499,9 @@ export function DonorProfile() {
                 onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
                 className="w-full px-4 py-3 text-base min-h-[44px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
               />
-            </div>
-            
-            {/* Geocoding Button */}
-            <button
-              type="button"
-              onClick={handleGeocode}
-              disabled={!editForm.city || !editForm.area || isGeocoding}
-              className="col-span-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              <MapPinned size={18} />
-              {isGeocoding ? 'Finding coordinates...' : '📍 Auto-fill Coordinates'}
-            </button>
-            
-            <div className="grid grid-cols-2 gap-4 md:gap-6">
-              <div>
-                <label className="block text-sm md:text-base font-semibold text-gray-700 mb-2">Latitude</label>
-                <input
-                  type="number"
-                  step="0.00000001"
-                  value={editForm.latitude}
-                  onChange={(e) => setEditForm({ ...editForm, latitude: e.target.value })}
-                  className="w-full px-4 py-3 text-base min-h-[44px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm md:text-base font-semibold text-gray-700 mb-2">Longitude</label>
-                <input
-                  type="number"
-                  step="0.00000001"
-                  value={editForm.longitude}
-                  onChange={(e) => setEditForm({ ...editForm, longitude: e.target.value })}
-                  className="w-full px-4 py-3 text-base min-h-[44px] border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                />
-              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                📍 Location coordinates will be automatically updated from your city and area
+              </p>
             </div>
           </div>
         )}

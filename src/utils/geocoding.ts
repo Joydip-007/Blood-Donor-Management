@@ -45,3 +45,42 @@ export function parseCoordinate(value: string | number | undefined): number | un
   const parsed = typeof value === 'string' ? parseFloat(value) : value;
   return isNaN(parsed) ? undefined : parsed;
 }
+
+/**
+ * Automatically fetch coordinates for a location if not already provided.
+ * Falls back gracefully if geocoding fails (coordinates are optional).
+ * 
+ * @param existingLat - Current latitude value (may be empty)
+ * @param existingLon - Current longitude value (may be empty)
+ * @param city - City name for geocoding
+ * @param area - Area/locality name for geocoding
+ * @returns Object with latitude and longitude strings (or original values if geocoding not needed/failed)
+ */
+export async function autoGeocodeIfNeeded(
+  existingLat: string,
+  existingLon: string,
+  city: string,
+  area: string
+): Promise<{ latitude: string; longitude: string }> {
+  let latitude = existingLat;
+  let longitude = existingLon;
+  
+  // Only attempt geocoding if coordinates are not already provided
+  if ((!latitude || !longitude) && city && area) {
+    try {
+      const coords = await geocodeLocation(city, area);
+      if (coords) {
+        latitude = coords.latitude.toString();
+        longitude = coords.longitude.toString();
+      }
+    } catch (error) {
+      // Silently fail - coordinates are optional
+      // Log for debugging purposes only
+      if (import.meta.env.DEV) {
+        console.log('Auto-geocoding failed, continuing without coordinates:', error);
+      }
+    }
+  }
+  
+  return { latitude, longitude };
+}
