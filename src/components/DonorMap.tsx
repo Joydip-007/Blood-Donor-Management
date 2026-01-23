@@ -56,6 +56,13 @@ const ZOOM_THRESHOLDS = [
 export function DonorMap({ donors }: DonorMapProps) {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
+  // Debug logging
+  console.log('DonorMap render:', {
+    donorCount: donors.length,
+    hasApiKey: !!apiKey,
+    apiKeyPrefix: apiKey ? apiKey.substring(0, 10) + '...' : 'undefined',
+  });
+
   // Check if API key is configured
   if (!apiKey) {
     return (
@@ -162,6 +169,13 @@ export function DonorMap({ donors }: DonorMapProps) {
 
   const mapUrl = buildMapUrl();
 
+  // Debug logging for map URL
+  console.log('DonorMap: Generated map URL:', {
+    url: mapUrl,
+    urlLength: mapUrl.length,
+    containsApiKey: mapUrl.includes('key='),
+  });
+
   return (
     <div className="space-y-4 md:space-y-6">
       {/* Map Image */}
@@ -171,6 +185,13 @@ export function DonorMap({ donors }: DonorMapProps) {
           alt="Donor locations map"
           className="w-full h-auto"
           style={{ maxWidth: '100%', height: 'auto' }}
+          onError={(e) => {
+            console.error('DonorMap: Failed to load map image', { mapUrl });
+            e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="800" height="600"%3E%3Crect width="800" height="600" fill="%23f3f4f6"/%3E%3Ctext x="400" y="300" text-anchor="middle" fill="%236b7280" font-family="Arial" font-size="18"%3EFailed to load map%3C/text%3E%3C/svg%3E';
+          }}
+          onLoad={() => {
+            console.log('DonorMap: Map image loaded successfully');
+          }}
         />
       </div>
 
