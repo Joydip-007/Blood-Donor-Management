@@ -1,6 +1,7 @@
 import React from 'react';
 import { MapPin } from 'lucide-react';
 import { Donor, BloodGroup } from '../types';
+import { debug } from '../utils/debug';
 
 interface DonorMapProps {
   donors: Donor[];
@@ -57,7 +58,7 @@ export function DonorMap({ donors }: DonorMapProps) {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
   // Debug logging
-  console.log('DonorMap render:', {
+  debug.log('DonorMap render:', {
     donorCount: donors.length,
     hasApiKey: !!apiKey,
     apiKeyPrefix: apiKey ? apiKey.substring(0, 10) + '...' : 'undefined',
@@ -65,7 +66,7 @@ export function DonorMap({ donors }: DonorMapProps) {
 
   // Check if API key is configured
   if (!apiKey) {
-    console.warn('DonorMap: VITE_GOOGLE_MAPS_API_KEY is not configured');
+    debug.warn('DonorMap: VITE_GOOGLE_MAPS_API_KEY is not configured');
     return (
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 md:p-8 text-center">
         <MapPin size={48} className="text-yellow-500 mx-auto mb-4" />
@@ -177,10 +178,10 @@ export function DonorMap({ donors }: DonorMapProps) {
         }
       });
 
-      console.log('DonorMap: Built URL successfully');
+      debug.log('DonorMap: Built URL successfully');
       return url;
     } catch (error) {
-      console.error('DonorMap: Error building map URL:', error);
+      debug.error('DonorMap: Error building map URL:', error);
       throw error;
     }
   };
@@ -188,7 +189,7 @@ export function DonorMap({ donors }: DonorMapProps) {
   const mapUrl = buildMapUrl();
 
   // Debug logging for map URL
-  console.log('DonorMap: Generated map URL:', {
+  debug.log('DonorMap: Generated map URL:', {
     url: mapUrl,
     urlLength: mapUrl.length,
     containsApiKey: mapUrl.includes('key='),
@@ -197,7 +198,7 @@ export function DonorMap({ donors }: DonorMapProps) {
 
   // Warn if URL is too long
   if (mapUrl.length > 8192) {
-    console.warn('DonorMap: Map URL exceeds Google Maps Static API limit of 8192 characters');
+    debug.warn('DonorMap: Map URL exceeds Google Maps Static API limit of 8192 characters');
   }
 
   return (
@@ -210,7 +211,7 @@ export function DonorMap({ donors }: DonorMapProps) {
           className="w-full h-auto"
           style={{ maxWidth: '100%', height: 'auto' }}
           onError={(e) => {
-            console.error('DonorMap: Failed to load map image', {
+            debug.error('DonorMap: Failed to load map image', {
               mapUrl,
               urlLength: mapUrl.length,
               possibleIssues: [
@@ -226,7 +227,7 @@ export function DonorMap({ donors }: DonorMapProps) {
             e.currentTarget.src = errorSvg;
           }}
           onLoad={() => {
-            console.log('DonorMap: Map image loaded successfully');
+            debug.log('DonorMap: Map image loaded successfully');
           }}
         />
       </div>
