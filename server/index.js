@@ -641,7 +641,7 @@ app.post('/api/auth/verify-otp', async (req, res) => {
       if (donors.length > 0) {
         donorId = donors[0].donor_id;
         isRegistered = true;
-        isActive = donors[0].is_active === 1 || donors[0].is_active === true;
+        isActive = Boolean(donors[0].is_active);
         if (process.env.NODE_ENV !== 'production') {
           console.log(`👤 Found existing donor with ID: ${donorId}, active: ${isActive}`);
         } else {
@@ -655,6 +655,7 @@ app.post('/api/auth/verify-otp', async (req, res) => {
     // Admin is always considered "registered" (bypasses registration requirement)
     if (isAdmin) {
       isRegistered = true;
+      isActive = true;  // Admin is always active
       if (process.env.NODE_ENV !== 'production') {
         console.log(`👑 Admin user authenticated: ${email}`);
       } else {
@@ -672,7 +673,7 @@ app.post('/api/auth/verify-otp', async (req, res) => {
       isRegistered,
       isAdmin,
       createdAt: new Date().toISOString(),
-      isActive: isAdmin ? true : isActive  // Use actual active status for donors, always true for admin
+      isActive
     };
 
     sessions.set(sessionToken, userData);
