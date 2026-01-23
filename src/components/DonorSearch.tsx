@@ -9,6 +9,11 @@ export function DonorSearch() {
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   
+  // Debug logging for view mode changes
+  useEffect(() => {
+    console.log('[DonorSearch] View mode changed to:', viewMode);
+  }, [viewMode]);
+  
   const [filters, setFilters] = useState({
     bloodGroup: '' as BloodGroup | '',
     city: '',
@@ -74,7 +79,10 @@ export function DonorSearch() {
             List View
           </button>
           <button
-            onClick={() => setViewMode('map')}
+            onClick={() => {
+              console.log('[DonorSearch] Map View button clicked');
+              setViewMode('map');
+            }}
             className={`flex-1 lg:flex-none px-4 md:px-6 py-3 rounded-lg transition-colors flex items-center justify-center gap-2 min-h-[44px] font-medium ${
               viewMode === 'map'
                 ? 'bg-red-600 text-white'
@@ -314,6 +322,7 @@ export function DonorSearch() {
       {/* Map View */}
       {viewMode === 'map' && (
         <div className="bg-white rounded-lg shadow-md p-6 md:p-8">
+          {console.log('[DonorSearch] Rendering Map View, donors with location:', donorsWithLocation.length)}
           <div className="mb-4 md:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <h3 className="font-semibold text-base md:text-lg flex items-center gap-2">
               <MapIcon size={20} className="text-red-600" />

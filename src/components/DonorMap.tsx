@@ -56,6 +56,9 @@ const ZOOM_THRESHOLDS = [
 export function DonorMap({ donors }: DonorMapProps) {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
+  console.log('[DonorMap] Component rendered with', donors.length, 'donors');
+  console.log('[DonorMap] API Key present:', !!apiKey);
+
   // Check if API key is configured
   if (!apiKey) {
     return (
