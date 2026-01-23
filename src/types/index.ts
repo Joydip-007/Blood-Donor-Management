@@ -50,6 +50,7 @@ export interface Donor {
   lastDonationDate: string | null;
   isAvailable: boolean;
   isDeleted: boolean;
+  isActive?: boolean; // Account activation status
   createdAt: string;
   updatedAt: string;
   deletedAt?: string;

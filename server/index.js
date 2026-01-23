@@ -843,15 +843,16 @@ app.get('/api/donors/profile', async (req, res) => {
     const session = sessions.get(token);
     
     if (!session || !session.donorId) {
-      return res.status(404).json({ error: 'Donor not found' });
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
     // Query donor with location join (per ERD relationships)
+    // Allow fetching profile even if inactive (user can see their own deactivated profile)
     const [donors] = await pool.execute(
       `SELECT d.*, l.city, l.area, l.latitude, l.longitude 
        FROM DONOR d 
        LEFT JOIN LOCATION l ON d.location_id = l.location_id 
-       WHERE d.donor_id = ? AND d.is_active = TRUE`,
+       WHERE d.donor_id = ?`,
       [session.donorId]
     );
 
@@ -895,6 +896,7 @@ app.get('/api/donors/profile', async (req, res) => {
       longitude: donorRecord.longitude,
       isAvailable,
       isDeleted: !donorRecord.is_active,
+      isActive: donorRecord.is_active, // Add isActive field
       lastDonationDate: donorRecord.last_donate,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -1008,15 +1010,75 @@ app.delete('/api/donors/profile', async (req, res) => {
     const session = sessions.get(token);
     
     if (!session || !session.donorId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Check if already inactive
+    const [donors] = await pool.execute(
+      'SELECT is_active FROM DONOR WHERE donor_id = ?',
+      [session.donorId]
+    );
+
+    if (donors.length === 0) {
       return res.status(404).json({ error: 'Donor not found' });
     }
 
-    await pool.execute('UPDATE DONOR SET is_active = FALSE WHERE donor_id = ?', [session.donorId]);
+    if (!donors[0].is_active) {
+      return res.status(400).json({ error: 'Account is already deactivated' });
+    }
 
-    res.json({ success: true, message: 'Donor marked as inactive' });
+    await pool.execute(
+      'UPDATE DONOR SET is_active = FALSE WHERE donor_id = ?',
+      [session.donorId]
+    );
+
+    res.json({ 
+      success: true, 
+      message: 'Your account has been deactivated. You can reactivate it anytime from your profile.' 
+    });
   } catch (error) {
-    console.error('Error deleting donor:', error);
-    res.status(500).json({ error: 'Failed to delete donor' });
+    console.error('Error deactivating donor:', error);
+    res.status(500).json({ error: 'Failed to deactivate account' });
+  }
+});
+
+// Reactivate donor account (soft undelete)
+app.patch('/api/donors/profile/reactivate', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    const session = sessions.get(token);
+    
+    if (!session || !session.donorId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Check if donor exists and is inactive
+    const [donors] = await pool.execute(
+      'SELECT donor_id, is_active FROM DONOR WHERE donor_id = ?',
+      [session.donorId]
+    );
+
+    if (donors.length === 0) {
+      return res.status(404).json({ error: 'Donor not found' });
+    }
+
+    if (donors[0].is_active) {
+      return res.status(400).json({ error: 'Account is already active' });
+    }
+
+    // Reactivate the account
+    await pool.execute(
+      'UPDATE DONOR SET is_active = TRUE WHERE donor_id = ?',
+      [session.donorId]
+    );
+
+    res.json({ 
+      success: true, 
+      message: 'Your account has been reactivated successfully. You will now appear in donor searches.' 
+    });
+  } catch (error) {
+    console.error('Error reactivating donor:', error);
+    res.status(500).json({ error: 'Failed to reactivate account' });
   }
 });
 
