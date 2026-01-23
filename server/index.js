@@ -938,7 +938,7 @@ app.get('/api/donors/profile', async (req, res) => {
       longitude: donorRecord.longitude,
       isAvailable,
       isDeleted: !donorRecord.is_active,
-      isActive: donorRecord.is_active, // Add isActive field
+      isActive: Boolean(donorRecord.is_active), // Convert MySQL TINYINT to boolean
       lastDonationDate: donorRecord.last_donate,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
