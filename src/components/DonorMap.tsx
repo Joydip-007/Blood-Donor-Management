@@ -42,6 +42,9 @@ const MAP_CONFIG = {
   METERS_PER_DEGREE: 111000,
 };
 
+// Error placeholder SVG for when map fails to load
+const MAP_ERROR_SVG = `data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="800" height="600"%3E%3Crect width="800" height="600" fill="%23fef3c7"/%3E%3Ctext x="400" y="280" text-anchor="middle" fill="%23a16207" font-family="Arial" font-size="18"%3EFailed to load map%3C/text%3E%3Ctext x="400" y="310" text-anchor="middle" fill="%23a16207" font-family="Arial" font-size="14"%3ECheck console for details%3C/text%3E%3Ctext x="400" y="340" text-anchor="middle" fill="%23ca8a04" font-family="Arial" font-size="12"%3EPossible issues: API key, quota, or restrictions%3C/text%3E%3C/svg%3E`;
+
 // Zoom level thresholds based on coordinate spread
 const ZOOM_THRESHOLDS = [
   { maxDiff: 10, zoom: 6 },
@@ -190,10 +193,10 @@ export function DonorMap({ donors }: DonorMapProps) {
 
   // Debug logging for map URL
   debug.log('DonorMap: Generated map URL:', {
-    url: mapUrl,
     urlLength: mapUrl.length,
     containsApiKey: mapUrl.includes('key='),
     exceedsLimit: mapUrl.length > 8192,
+    baseUrl: mapUrl.split('?')[0],
   });
 
   // Warn if URL is too long
@@ -212,7 +215,6 @@ export function DonorMap({ donors }: DonorMapProps) {
           style={{ maxWidth: '100%', height: 'auto' }}
           onError={(e) => {
             debug.error('DonorMap: Failed to load map image', {
-              mapUrl,
               urlLength: mapUrl.length,
               possibleIssues: [
                 'Invalid API key',
@@ -223,8 +225,7 @@ export function DonorMap({ donors }: DonorMapProps) {
               ]
             });
             // Replace with error placeholder
-            const errorSvg = `data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="800" height="600"%3E%3Crect width="800" height="600" fill="%23fef3c7"/%3E%3Ctext x="400" y="280" text-anchor="middle" fill="%23a16207" font-family="Arial" font-size="18"%3EFailed to load map%3C/text%3E%3Ctext x="400" y="310" text-anchor="middle" fill="%23a16207" font-family="Arial" font-size="14"%3ECheck console for details%3C/text%3E%3Ctext x="400" y="340" text-anchor="middle" fill="%23ca8a04" font-family="Arial" font-size="12"%3EPossible issues: API key, quota, or restrictions%3C/text%3E%3C/svg%3E`;
-            e.currentTarget.src = errorSvg;
+            e.currentTarget.src = MAP_ERROR_SVG;
           }}
           onLoad={() => {
             debug.log('DonorMap: Map image loaded successfully');
