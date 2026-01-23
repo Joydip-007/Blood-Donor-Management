@@ -164,7 +164,7 @@ export function DonorProfile() {
 
       if (response.ok) {
         setSuccess(data.message || 'Profile deactivated successfully');
-        fetchProfile(); // Refresh to show deactivated status
+        await fetchProfile(); // Refresh to show deactivated status
       } else {
         setError(data.error || 'Failed to deactivate account');
       }
@@ -202,7 +202,7 @@ export function DonorProfile() {
 
       if (response.ok) {
         setSuccess(data.message || 'Account reactivated successfully');
-        fetchProfile(); // Refresh profile
+        await fetchProfile(); // Refresh profile
       } else {
         setError(data.error || 'Failed to reactivate account');
       }
