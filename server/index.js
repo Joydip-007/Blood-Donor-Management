@@ -1196,7 +1196,7 @@ app.post('/api/donors/search', async (req, res) => {
         latitude: d.latitude,
         longitude: d.longitude,
         isAvailable: availability,
-        isDeleted: !d.is_active,
+        isDeleted: !Boolean(d.is_active), // Convert MySQL TINYINT to boolean
         lastDonationDate: d.last_donate,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -1574,7 +1574,7 @@ app.get('/api/admin/donors/all', isAdmin, async (req, res) => {
         latitude: d.latitude,
         longitude: d.longitude,
         isAvailable: availability,
-        isDeleted: !d.is_active,
+        isDeleted: !Boolean(d.is_active), // Convert MySQL TINYINT to boolean
         lastDonationDate: d.last_donate,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -1779,7 +1779,7 @@ app.put('/api/admin/donors/:donorId', isAdmin, async (req, res) => {
       latitude: d.latitude,
       longitude: d.longitude,
       isAvailable: availability,
-      isDeleted: !d.is_active,
+      isDeleted: !Boolean(d.is_active), // Convert MySQL TINYINT to boolean
       lastDonationDate: d.last_donate,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
