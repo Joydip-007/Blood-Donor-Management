@@ -106,12 +106,12 @@ export function DonorMap({ donors }: DonorMapProps) {
   }
 
   // Calculate map center (average of all coordinates)
-  const centerLat = donors.reduce((sum, d) => sum + (d.latitude || 0), 0) / donors.length;
-  const centerLng = donors.reduce((sum, d) => sum + (d.longitude || 0), 0) / donors.length;
+  const centerLat = donors.reduce((sum, d) => sum + (Number(d.latitude) || 0), 0) / donors.length;
+  const centerLng = donors.reduce((sum, d) => sum + (Number(d.longitude) || 0), 0) / donors.length;
 
   // Calculate zoom level based on coordinate spread
-  const lats = donors.map(d => d.latitude || 0);
-  const lngs = donors.map(d => d.longitude || 0);
+  const lats = donors.map(d => Number(d.latitude) || 0);
+  const lngs = donors.map(d => Number(d.longitude) || 0);
   const maxLat = Math.max(...lats);
   const minLat = Math.min(...lats);
   const maxLng = Math.max(...lngs);
@@ -175,7 +175,7 @@ export function DonorMap({ donors }: DonorMapProps) {
       donors.forEach(donor => {
         if (donor.latitude && donor.longitude) {
           const color = BLOOD_GROUP_COLORS[donor.bloodGroup];
-          const circlePoints = generateCircle(donor.latitude, donor.longitude);
+          const circlePoints = generateCircle(Number(donor.latitude), Number(donor.longitude));
           // Semi-transparent fill (1A opacity) and visible border (80 opacity)
           url += `&path=color:${color}80|fillcolor:${color}1A|weight:2|${circlePoints}`;
         }
