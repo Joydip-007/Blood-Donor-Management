@@ -65,13 +65,25 @@ export function DonorMap({ donors }: DonorMapProps) {
 
   // Check if API key is configured
   if (!apiKey) {
+    console.warn('DonorMap: VITE_GOOGLE_MAPS_API_KEY is not configured');
     return (
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 md:p-8 text-center">
         <MapPin size={48} className="text-yellow-500 mx-auto mb-4" />
         <p className="text-yellow-900 font-medium mb-2 text-base md:text-lg">Map Configuration Required</p>
-        <p className="text-sm md:text-base text-yellow-800">
+        <p className="text-sm md:text-base text-yellow-800 mb-4">
           Google Maps API key is not configured. Please set VITE_GOOGLE_MAPS_API_KEY in your environment variables.
         </p>
+        <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-4 text-left text-sm">
+          <p className="font-semibold mb-2">For Vercel deployment:</p>
+          <ol className="list-decimal list-inside space-y-1">
+            <li>Go to your Vercel project settings</li>
+            <li>Navigate to "Environment Variables"</li>
+            <li>Add: <code className="bg-white px-2 py-1 rounded">VITE_GOOGLE_MAPS_API_KEY</code></li>
+            <li>Set the value to your Google Maps API key</li>
+            <li>Make sure it's enabled for all environments (Production, Preview, Development)</li>
+            <li>Redeploy your application</li>
+          </ol>
+        </div>
       </div>
     );
   }
@@ -124,47 +136,53 @@ export function DonorMap({ donors }: DonorMapProps) {
 
   // Build Google Maps Static API URL
   const buildMapUrl = (): string => {
-    const baseUrl = 'https://maps.googleapis.com/maps/api/staticmap';
-    const params = new URLSearchParams({
-      center: `${centerLat},${centerLng}`,
-      zoom: zoom.toString(),
-      size: `${MAP_CONFIG.WIDTH}x${MAP_CONFIG.HEIGHT}`,
-      scale: MAP_CONFIG.SCALE.toString(),
-      maptype: 'roadmap',
-      key: apiKey,
-    });
+    try {
+      const baseUrl = 'https://maps.googleapis.com/maps/api/staticmap';
+      const params = new URLSearchParams({
+        center: `${centerLat},${centerLng}`,
+        zoom: zoom.toString(),
+        size: `${MAP_CONFIG.WIDTH}x${MAP_CONFIG.HEIGHT}`,
+        scale: MAP_CONFIG.SCALE.toString(),
+        maptype: 'roadmap',
+        key: apiKey,
+      });
 
-    let url = `${baseUrl}?${params.toString()}`;
+      let url = `${baseUrl}?${params.toString()}`;
 
-    // Group donors by blood group for markers
-    const donorsByBloodGroup = donors.reduce((acc, donor) => {
-      if (!acc[donor.bloodGroup]) {
-        acc[donor.bloodGroup] = [];
-      }
-      acc[donor.bloodGroup].push(donor);
-      return acc;
-    }, {} as Record<BloodGroup, Donor[]>);
+      // Group donors by blood group for markers
+      const donorsByBloodGroup = donors.reduce((acc, donor) => {
+        if (!acc[donor.bloodGroup]) {
+          acc[donor.bloodGroup] = [];
+        }
+        acc[donor.bloodGroup].push(donor);
+        return acc;
+      }, {} as Record<BloodGroup, Donor[]>);
 
-    // Add markers for each blood group
-    Object.entries(donorsByBloodGroup).forEach(([bloodGroup, groupDonors]) => {
-      const color = BLOOD_GROUP_COLORS[bloodGroup as BloodGroup];
-      const locations = groupDonors
-        .map(d => `${d.latitude},${d.longitude}`)
-        .join('|');
-      url += `&markers=color:${color}|${locations}`;
-    });
+      // Add markers for each blood group
+      Object.entries(donorsByBloodGroup).forEach(([bloodGroup, groupDonors]) => {
+        const color = BLOOD_GROUP_COLORS[bloodGroup as BloodGroup];
+        const locations = groupDonors
+          .map(d => `${d.latitude},${d.longitude}`)
+          .join('|');
+        url += `&markers=color:${color}|${locations}`;
+      });
 
-    // Add circular paths around each donor
-    donors.forEach(donor => {
-      if (donor.latitude && donor.longitude) {
-        const color = BLOOD_GROUP_COLORS[donor.bloodGroup];
-        const circlePoints = generateCircle(donor.latitude, donor.longitude);
-        // Semi-transparent fill (1A opacity) and visible border (80 opacity)
-        url += `&path=color:${color}80|fillcolor:${color}1A|weight:2|${circlePoints}`;
-      }
-    });
+      // Add circular paths around each donor
+      donors.forEach(donor => {
+        if (donor.latitude && donor.longitude) {
+          const color = BLOOD_GROUP_COLORS[donor.bloodGroup];
+          const circlePoints = generateCircle(donor.latitude, donor.longitude);
+          // Semi-transparent fill (1A opacity) and visible border (80 opacity)
+          url += `&path=color:${color}80|fillcolor:${color}1A|weight:2|${circlePoints}`;
+        }
+      });
 
-    return url;
+      console.log('DonorMap: Built URL successfully');
+      return url;
+    } catch (error) {
+      console.error('DonorMap: Error building map URL:', error);
+      throw error;
+    }
   };
 
   const mapUrl = buildMapUrl();
@@ -174,7 +192,13 @@ export function DonorMap({ donors }: DonorMapProps) {
     url: mapUrl,
     urlLength: mapUrl.length,
     containsApiKey: mapUrl.includes('key='),
+    exceedsLimit: mapUrl.length > 8192,
   });
+
+  // Warn if URL is too long
+  if (mapUrl.length > 8192) {
+    console.warn('DonorMap: Map URL exceeds Google Maps Static API limit of 8192 characters');
+  }
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -186,8 +210,20 @@ export function DonorMap({ donors }: DonorMapProps) {
           className="w-full h-auto"
           style={{ maxWidth: '100%', height: 'auto' }}
           onError={(e) => {
-            console.error('DonorMap: Failed to load map image', { mapUrl });
-            e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="800" height="600"%3E%3Crect width="800" height="600" fill="%23f3f4f6"/%3E%3Ctext x="400" y="300" text-anchor="middle" fill="%236b7280" font-family="Arial" font-size="18"%3EFailed to load map%3C/text%3E%3C/svg%3E';
+            console.error('DonorMap: Failed to load map image', {
+              mapUrl,
+              urlLength: mapUrl.length,
+              possibleIssues: [
+                'Invalid API key',
+                'API key restrictions (check Google Cloud Console)',
+                'URL too long (max 8192 characters)',
+                'API quota exceeded',
+                'Network error',
+              ]
+            });
+            // Replace with error placeholder
+            const errorSvg = `data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="800" height="600"%3E%3Crect width="800" height="600" fill="%23fef3c7"/%3E%3Ctext x="400" y="280" text-anchor="middle" fill="%23a16207" font-family="Arial" font-size="18"%3EFailed to load map%3C/text%3E%3Ctext x="400" y="310" text-anchor="middle" fill="%23a16207" font-family="Arial" font-size="14"%3ECheck console for details%3C/text%3E%3Ctext x="400" y="340" text-anchor="middle" fill="%23ca8a04" font-family="Arial" font-size="12"%3EPossible issues: API key, quota, or restrictions%3C/text%3E%3C/svg%3E`;
+            e.currentTarget.src = errorSvg;
           }}
           onLoad={() => {
             console.log('DonorMap: Map image loaded successfully');
