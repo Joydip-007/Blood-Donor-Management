@@ -384,9 +384,18 @@ async function getBloodGroupName(bgId) {
 
 // Get or create location
 async function getOrCreateLocation(city, area, latitude = null, longitude = null) {
+  // Helper to safely parse coordinate - returns null for invalid values
+  const parseCoordinate = (value) => {
+    if (value === null || value === undefined || value === '') {
+      return null;
+    }
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? null : parsed;
+  };
+  
   // Parse coordinates to ensure they're numbers or null
-  const parsedLat = latitude ? parseFloat(latitude) : null;
-  const parsedLon = longitude ? parseFloat(longitude) : null;
+  const parsedLat = parseCoordinate(latitude);
+  const parsedLon = parseCoordinate(longitude);
   
   // Check if location exists
   const [existing] = await pool.execute(
