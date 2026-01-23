@@ -751,7 +751,7 @@ app.post('/api/donors/register', async (req, res) => {
     if (existingEmail.length > 0) {
       if (!existingEmail[0].is_active) {
         return res.status(400).json({ 
-          error: 'This email belongs to a deactivated account. Please log in to reactivate your account instead of registering again.' 
+          error: 'This email belongs to a deactivated account. Please log in with your email to access your profile and reactivate your account.' 
         });
       }
       return res.status(400).json({ error: 'Email already registered' });
@@ -766,7 +766,7 @@ app.post('/api/donors/register', async (req, res) => {
     if (existingPhone.length > 0) {
       if (!existingPhone[0].is_active) {
         return res.status(400).json({ 
-          error: 'This phone number belongs to a deactivated account. Please log in to reactivate your account instead of registering again.' 
+          error: 'This phone number belongs to a deactivated account. Please log in to access your profile and reactivate your account.' 
         });
       }
       return res.status(400).json({ error: 'Phone number already registered' });
@@ -1465,7 +1465,7 @@ app.post('/api/admin/donors/add', isAdmin, async (req, res) => {
     if (existingEmail.length > 0) {
       if (!existingEmail[0].is_active) {
         return res.status(400).json({ 
-          error: 'This email belongs to a deactivated account. Please reactivate the account instead of adding it again.' 
+          error: 'This email belongs to a deactivated account. Please reactivate the account from the donor list instead of adding it again.' 
         });
       }
       return res.status(400).json({ error: 'Email already registered' });
@@ -1480,7 +1480,7 @@ app.post('/api/admin/donors/add', isAdmin, async (req, res) => {
     if (existingPhone.length > 0) {
       if (!existingPhone[0].is_active) {
         return res.status(400).json({ 
-          error: 'This phone number belongs to a deactivated account. Please reactivate the account instead of adding it again.' 
+          error: 'This phone number belongs to a deactivated account. Please reactivate the account from the donor list instead of adding it again.' 
         });
       }
       return res.status(400).json({ error: 'Phone number already registered' });
