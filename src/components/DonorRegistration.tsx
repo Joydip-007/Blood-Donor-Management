@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { API_BASE_URL } from '../utils/api';
 import { BloodGroup } from '../types';
 import { calculateAge } from '../utils/helpers';
-import { geocodeLocation, parseCoordinate } from '../utils/geocoding';
+import { autoGeocodeIfNeeded, parseCoordinate } from '../utils/geocoding';
 import { validateBangladeshPhone } from '../utils/phoneUtils';
 
 interface Props {
@@ -121,22 +121,13 @@ export function DonorRegistration({ onSuccess }: Props) {
     setLoading(true);
 
     try {
-      // Attempt to geocode location in the background if coordinates are not provided
-      let latitude = formData.latitude;
-      let longitude = formData.longitude;
-      
-      if ((!latitude || !longitude) && formData.city && formData.area) {
-        try {
-          const coords = await geocodeLocation(formData.city, formData.area);
-          if (coords) {
-            latitude = coords.latitude.toString();
-            longitude = coords.longitude.toString();
-          }
-        } catch (geocodeError) {
-          // Silently fail - coordinates are optional
-          console.log('Auto-geocoding failed, continuing without coordinates');
-        }
-      }
+      // Automatically fetch coordinates if not provided
+      const { latitude, longitude } = await autoGeocodeIfNeeded(
+        formData.latitude,
+        formData.longitude,
+        formData.city,
+        formData.area
+      );
 
       const response = await fetch(
         `${API_BASE_URL}/donors/register`,

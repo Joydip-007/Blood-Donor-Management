@@ -3,7 +3,7 @@ import { Edit2, Save, X, Phone, Mail, MapPin, Calendar, Droplet, AlertCircle, Ch
 import { useAuth } from '../contexts/AuthContext';
 import { API_BASE_URL } from '../utils/api';
 import { Donor, BloodGroup } from '../types';
-import { geocodeLocation, parseCoordinate } from '../utils/geocoding';
+import { autoGeocodeIfNeeded, parseCoordinate } from '../utils/geocoding';
 import { validateBangladeshPhone } from '../utils/phoneUtils';
 
 export function DonorProfile() {
@@ -96,22 +96,13 @@ export function DonorProfile() {
     setLoading(true);
 
     try {
-      // Attempt to geocode location in the background if coordinates are not provided
-      let latitude = editForm.latitude;
-      let longitude = editForm.longitude;
-      
-      if ((!latitude || !longitude) && editForm.city && editForm.area) {
-        try {
-          const coords = await geocodeLocation(editForm.city, editForm.area);
-          if (coords) {
-            latitude = coords.latitude.toString();
-            longitude = coords.longitude.toString();
-          }
-        } catch (geocodeError) {
-          // Silently fail - coordinates are optional
-          console.log('Auto-geocoding failed, continuing without coordinates');
-        }
-      }
+      // Automatically fetch coordinates if not provided
+      const { latitude, longitude } = await autoGeocodeIfNeeded(
+        editForm.latitude,
+        editForm.longitude,
+        editForm.city,
+        editForm.area
+      );
 
       const response = await fetch(
         `${API_BASE_URL}/donors/profile`,
