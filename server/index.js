@@ -631,8 +631,9 @@ app.post('/api/auth/verify-otp', async (req, res) => {
     
     if (email && !isAdmin) {
       // Only check donor DB for non-admin users
+      // Check for donor regardless of is_active status to recognize deactivated accounts
       const [donors] = await pool.execute(
-        'SELECT donor_id FROM DONOR WHERE email = ? AND is_active = TRUE',
+        'SELECT donor_id FROM DONOR WHERE email = ?',
         [email]
       );
       if (donors.length > 0) {
@@ -742,20 +743,32 @@ app.post('/api/donors/register', async (req, res) => {
     }
 
     // Check for duplicate email (per ERD: email is UNIQUE)
+    // Include deactivated accounts to prevent duplicate registration attempts
     const [existingEmail] = await pool.execute(
-      'SELECT donor_id FROM DONOR WHERE email = ? AND is_active = TRUE',
+      'SELECT donor_id, is_active FROM DONOR WHERE email = ?',
       [email]
     );
     if (existingEmail.length > 0) {
+      if (!existingEmail[0].is_active) {
+        return res.status(400).json({ 
+          error: 'This email belongs to a deactivated account. Please log in to reactivate your account instead of registering again.' 
+        });
+      }
       return res.status(400).json({ error: 'Email already registered' });
     }
 
     // Check for duplicate phone (use cleaned version)
+    // Include deactivated accounts to prevent duplicate registration attempts
     const [existingPhone] = await pool.execute(
-      'SELECT cn.donor_id FROM CONTACT_NUMBER cn JOIN DONOR d ON cn.donor_id = d.donor_id WHERE cn.phone_number = ? AND d.is_active = TRUE',
+      'SELECT cn.donor_id, d.is_active FROM CONTACT_NUMBER cn JOIN DONOR d ON cn.donor_id = d.donor_id WHERE cn.phone_number = ?',
       [cleanedPhone]
     );
     if (existingPhone.length > 0) {
+      if (!existingPhone[0].is_active) {
+        return res.status(400).json({ 
+          error: 'This phone number belongs to a deactivated account. Please log in to reactivate your account instead of registering again.' 
+        });
+      }
       return res.status(400).json({ error: 'Phone number already registered' });
     }
 
@@ -1444,20 +1457,32 @@ app.post('/api/admin/donors/add', isAdmin, async (req, res) => {
     }
 
     // Check for duplicate email (per ERD: email is UNIQUE)
+    // Include deactivated accounts to prevent duplicate registration attempts
     const [existingEmail] = await pool.execute(
-      'SELECT donor_id FROM DONOR WHERE email = ? AND is_active = TRUE',
+      'SELECT donor_id, is_active FROM DONOR WHERE email = ?',
       [email]
     );
     if (existingEmail.length > 0) {
+      if (!existingEmail[0].is_active) {
+        return res.status(400).json({ 
+          error: 'This email belongs to a deactivated account. Please reactivate the account instead of adding it again.' 
+        });
+      }
       return res.status(400).json({ error: 'Email already registered' });
     }
 
     // Check for duplicate phone (use cleaned version)
+    // Include deactivated accounts to prevent duplicate registration attempts
     const [existingPhone] = await pool.execute(
-      'SELECT cn.donor_id FROM CONTACT_NUMBER cn JOIN DONOR d ON cn.donor_id = d.donor_id WHERE cn.phone_number = ? AND d.is_active = TRUE',
+      'SELECT cn.donor_id, d.is_active FROM CONTACT_NUMBER cn JOIN DONOR d ON cn.donor_id = d.donor_id WHERE cn.phone_number = ?',
       [cleanedPhone]
     );
     if (existingPhone.length > 0) {
+      if (!existingPhone[0].is_active) {
+        return res.status(400).json({ 
+          error: 'This phone number belongs to a deactivated account. Please reactivate the account instead of adding it again.' 
+        });
+      }
       return res.status(400).json({ error: 'Phone number already registered' });
     }
 
