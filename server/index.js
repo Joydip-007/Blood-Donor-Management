@@ -625,23 +625,27 @@ app.post('/api/auth/verify-otp', async (req, res) => {
     // Check if donor exists
     let donorId = null;
     let isRegistered = false;
+    let isActive = true;
     
     // Check if admin
     const isAdmin = email === ADMIN_EMAIL;
     
     if (email && !isAdmin) {
-      // Only check donor DB for non-admin users
+      // Check donor DB for non-admin users
+      // Note: We check for ALL donors with this email (including deactivated ones)
+      // A deactivated donor is still registered - they just need to reactivate their account
       const [donors] = await pool.execute(
-        'SELECT donor_id FROM DONOR WHERE email = ? AND is_active = TRUE',
+        'SELECT donor_id, is_active FROM DONOR WHERE email = ?',
         [email]
       );
       if (donors.length > 0) {
         donorId = donors[0].donor_id;
         isRegistered = true;
+        isActive = donors[0].is_active === 1 || donors[0].is_active === true;
         if (process.env.NODE_ENV !== 'production') {
-          console.log(`👤 Found existing donor with ID: ${donorId}`);
+          console.log(`👤 Found existing donor with ID: ${donorId}, active: ${isActive}`);
         } else {
-          console.log(`👤 Found existing donor`);
+          console.log(`👤 Found existing donor, active: ${isActive}`);
         }
       } else {
         console.log(`👤 No existing donor found, new user`);
@@ -668,7 +672,7 @@ app.post('/api/auth/verify-otp', async (req, res) => {
       isRegistered,
       isAdmin,
       createdAt: new Date().toISOString(),
-      isActive: true
+      isActive: isAdmin ? true : isActive  // Use actual active status for donors, always true for admin
     };
 
     sessions.set(sessionToken, userData);

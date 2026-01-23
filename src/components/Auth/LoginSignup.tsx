@@ -328,12 +328,9 @@ export function LoginSignup() {
     setLoading(true);
     try {
       await login(email, "", otp);
-      const userStr = localStorage.getItem("authUser");
-      if (userStr) {
-        const userData = JSON.parse(userStr);
-        if (userData.isAdmin || userData.isRegistered) window.location.href = "/";
-        else window.location.href = "/";
-      }
+      // Redirect to home - App.tsx will handle routing based on user state
+      // (admin -> admin dashboard, registered donor -> dashboard, new user -> registration form)
+      window.location.href = "/";
     } catch (err: unknown) {
       if (err instanceof Error) setError(err.message);
       else setError("An unexpected error occurred");
