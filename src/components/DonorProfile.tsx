@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Edit2, Save, X, Phone, Mail, MapPin, Calendar, Droplet, AlertCircle, CheckCircle, UserX, MapPinned } from 'lucide-react';
+import { Edit2, Save, X, Phone, Mail, MapPin, Calendar, Droplet, AlertCircle, CheckCircle, UserX, MapPinned, Shield } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API_BASE_URL } from '../utils/api';
 import { Donor, BloodGroup } from '../types';
@@ -14,6 +14,7 @@ export function DonorProfile() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isGeocoding, setIsGeocoding] = useState(false);
+  const [isReactivating, setIsReactivating] = useState(false);
   
   const [editForm, setEditForm] = useState({
     phone: '',
@@ -44,24 +45,32 @@ export function DonorProfile() {
         }
       );
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch profile');
+      if (response.ok) {
+        const data = await response.json();
+        setDonor(data.donor);
+        setEditForm({
+          phone: data.donor.phone || '',
+          alternatePhone: data.donor.alternatePhone || '',
+          city: data.donor.city || '',
+          area: data.donor.area || '',
+          address: data.donor.address || '',
+          latitude: data.donor.latitude?.toString() || '',
+          longitude: data.donor.longitude?.toString() || '',
+          lastDonationDate: data.donor.lastDonationDate ? new Date(data.donor.lastDonationDate).toISOString().split('T')[0] : '',
+        });
+        
+        // Clear any errors if profile loaded successfully
+        if (data.donor.isActive === false) {
+          setError('');
+        }
+      } else if (response.status === 401) {
+        setError('Session expired. Please login again.');
+      } else {
+        const data = await response.json();
+        setError(data.error || 'Failed to load profile');
       }
-
-      const data = await response.json();
-      setDonor(data.donor);
-      setEditForm({
-        phone: data.donor.phone || '',
-        alternatePhone: data.donor.alternatePhone || '',
-        city: data.donor.city || '',
-        area: data.donor.area || '',
-        address: data.donor.address || '',
-        latitude: data.donor.latitude?.toString() || '',
-        longitude: data.donor.longitude?.toString() || '',
-        lastDonationDate: data.donor.lastDonationDate ? new Date(data.donor.lastDonationDate).toISOString().split('T')[0] : '',
-      });
     } catch (err: any) {
-      setError(err.message);
+      setError('Failed to connect to server. Please check your internet connection.');
     } finally {
       setLoading(false);
     }
@@ -151,7 +160,11 @@ export function DonorProfile() {
   };
 
   const handleDeactivate = async () => {
-    if (!confirm('Are you sure you want to deactivate your donor profile? Your data will be preserved but you will not appear in search results.')) {
+    if (!confirm(
+      'Are you sure you want to deactivate your account?\n\n' +
+      'Your profile will be hidden from searches but all your data will be preserved.\n' +
+      'You can reactivate your account anytime.'
+    )) {
       return;
     }
 
@@ -169,18 +182,53 @@ export function DonorProfile() {
         }
       );
 
-      if (!response.ok) {
-        throw new Error('Failed to deactivate profile');
-      }
+      const data = await response.json();
 
-      setSuccess('Profile deactivated successfully');
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
+      if (response.ok) {
+        setSuccess(data.message || 'Profile deactivated successfully');
+        fetchProfile(); // Refresh to show deactivated status
+      } else {
+        setError(data.error || 'Failed to deactivate account');
+      }
     } catch (err: any) {
-      setError(err.message);
+      setError('Failed to deactivate account. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleReactivate = async () => {
+    if (!confirm('Reactivate your account? You will appear in donor searches again.')) {
+      return;
+    }
+
+    setIsReactivating(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/donors/profile/reactivate`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccess(data.message || 'Account reactivated successfully');
+        fetchProfile(); // Refresh profile
+      } else {
+        setError(data.error || 'Failed to reactivate account');
+      }
+    } catch (err: any) {
+      setError('Failed to reactivate account. Please try again.');
+    } finally {
+      setIsReactivating(false);
     }
   };
 
@@ -533,22 +581,59 @@ export function DonorProfile() {
         </div>
       )}
 
-      {/* Deactivate Account */}
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6 md:p-8">
-        <h3 className="text-lg md:text-xl font-semibold text-red-900 mb-2 flex items-center gap-2">
-          <UserX size={20} />
-          Deactivate Profile
+      {/* Account Status and Deactivation Section */}
+      <div className="bg-white rounded-lg shadow-sm p-6 md:p-8">
+        <h3 className="text-lg md:text-xl font-bold mb-4 flex items-center gap-2">
+          {donor?.isActive === false ? (
+            <>
+              <AlertCircle className="text-yellow-600" size={24} />
+              <span className="text-yellow-600">Account Deactivated</span>
+            </>
+          ) : (
+            <>
+              <Shield className="text-green-600" size={24} />
+              <span className="text-green-600">Account Active</span>
+            </>
+          )}
         </h3>
-        <p className="text-sm md:text-base text-red-800 mb-4">
-          Deactivating your profile will remove you from donor searches, but your data will be preserved. You can reactivate anytime.
-        </p>
-        <button
-          onClick={handleDeactivate}
-          disabled={loading}
-          className="px-4 md:px-6 py-2 md:py-3 min-h-[44px] bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:bg-gray-300"
-        >
-          Deactivate My Profile
-        </button>
+
+        {donor?.isActive === false ? (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+            <p className="text-sm md:text-base text-yellow-800 mb-4">
+              Your account is currently deactivated. You will not appear in donor searches or emergency requests.
+              Your profile data is safely preserved and you can reactivate anytime.
+            </p>
+            <button
+              onClick={handleReactivate}
+              disabled={isReactivating}
+              className="px-4 md:px-6 py-2 md:py-3 min-h-[44px] bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 font-semibold transition-colors"
+            >
+              {isReactivating ? 'Reactivating...' : '✓ Reactivate My Account'}
+            </button>
+          </div>
+        ) : (
+          <div>
+            <h4 className="font-semibold text-red-600 mb-3">Deactivate Account</h4>
+            <p className="text-sm md:text-base text-gray-600 mb-4">
+              Temporarily deactivate your account. Your profile data will be preserved and you can reactivate anytime.
+              While deactivated:
+            </p>
+            <ul className="list-disc list-inside text-sm md:text-base text-gray-600 mb-4 space-y-1">
+              <li>You will not appear in donor searches</li>
+              <li>You will not be matched for emergency requests</li>
+              <li>Your profile remains accessible to you</li>
+              <li>You can reactivate anytime</li>
+              <li>No data will be deleted</li>
+            </ul>
+            <button
+              onClick={handleDeactivate}
+              disabled={loading}
+              className="px-4 md:px-6 py-2 md:py-3 min-h-[44px] bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:bg-gray-300"
+            >
+              {loading ? 'Deactivating...' : 'Deactivate Account'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Metadata */}
