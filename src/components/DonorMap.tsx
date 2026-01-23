@@ -1,6 +1,7 @@
 import React from 'react';
 import { MapPin } from 'lucide-react';
 import { Donor, BloodGroup } from '../types';
+import { debug } from '../utils/debug';
 
 interface DonorMapProps {
   donors: Donor[];
@@ -41,6 +42,9 @@ const MAP_CONFIG = {
   METERS_PER_DEGREE: 111000,
 };
 
+// Error placeholder SVG for when map fails to load
+const MAP_ERROR_SVG = `data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="800" height="600"%3E%3Crect width="800" height="600" fill="%23fef3c7"/%3E%3Ctext x="400" y="280" text-anchor="middle" fill="%23a16207" font-family="Arial" font-size="18"%3EFailed to load map%3C/text%3E%3Ctext x="400" y="310" text-anchor="middle" fill="%23a16207" font-family="Arial" font-size="14"%3ECheck console for details%3C/text%3E%3Ctext x="400" y="340" text-anchor="middle" fill="%23ca8a04" font-family="Arial" font-size="12"%3EPossible issues: API key, quota, or restrictions%3C/text%3E%3C/svg%3E`;
+
 // Zoom level thresholds based on coordinate spread
 const ZOOM_THRESHOLDS = [
   { maxDiff: 10, zoom: 6 },
@@ -56,15 +60,34 @@ const ZOOM_THRESHOLDS = [
 export function DonorMap({ donors }: DonorMapProps) {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
+  // Debug logging
+  debug.log('DonorMap render:', {
+    donorCount: donors.length,
+    hasApiKey: !!apiKey,
+    apiKeyPrefix: apiKey ? apiKey.substring(0, 10) + '...' : 'undefined',
+  });
+
   // Check if API key is configured
   if (!apiKey) {
+    debug.warn('DonorMap: VITE_GOOGLE_MAPS_API_KEY is not configured');
     return (
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 md:p-8 text-center">
         <MapPin size={48} className="text-yellow-500 mx-auto mb-4" />
         <p className="text-yellow-900 font-medium mb-2 text-base md:text-lg">Map Configuration Required</p>
-        <p className="text-sm md:text-base text-yellow-800">
+        <p className="text-sm md:text-base text-yellow-800 mb-4">
           Google Maps API key is not configured. Please set VITE_GOOGLE_MAPS_API_KEY in your environment variables.
         </p>
+        <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-4 text-left text-sm">
+          <p className="font-semibold mb-2">For Vercel deployment:</p>
+          <ol className="list-decimal list-inside space-y-1">
+            <li>Go to your Vercel project settings</li>
+            <li>Navigate to "Environment Variables"</li>
+            <li>Add: <code className="bg-white px-2 py-1 rounded">VITE_GOOGLE_MAPS_API_KEY</code></li>
+            <li>Set the value to your Google Maps API key</li>
+            <li>Make sure it's enabled for all environments (Production, Preview, Development)</li>
+            <li>Redeploy your application</li>
+          </ol>
+        </div>
       </div>
     );
   }
@@ -117,50 +140,69 @@ export function DonorMap({ donors }: DonorMapProps) {
 
   // Build Google Maps Static API URL
   const buildMapUrl = (): string => {
-    const baseUrl = 'https://maps.googleapis.com/maps/api/staticmap';
-    const params = new URLSearchParams({
-      center: `${centerLat},${centerLng}`,
-      zoom: zoom.toString(),
-      size: `${MAP_CONFIG.WIDTH}x${MAP_CONFIG.HEIGHT}`,
-      scale: MAP_CONFIG.SCALE.toString(),
-      maptype: 'roadmap',
-      key: apiKey,
-    });
+    try {
+      const baseUrl = 'https://maps.googleapis.com/maps/api/staticmap';
+      const params = new URLSearchParams({
+        center: `${centerLat},${centerLng}`,
+        zoom: zoom.toString(),
+        size: `${MAP_CONFIG.WIDTH}x${MAP_CONFIG.HEIGHT}`,
+        scale: MAP_CONFIG.SCALE.toString(),
+        maptype: 'roadmap',
+        key: apiKey,
+      });
 
-    let url = `${baseUrl}?${params.toString()}`;
+      let url = `${baseUrl}?${params.toString()}`;
 
-    // Group donors by blood group for markers
-    const donorsByBloodGroup = donors.reduce((acc, donor) => {
-      if (!acc[donor.bloodGroup]) {
-        acc[donor.bloodGroup] = [];
-      }
-      acc[donor.bloodGroup].push(donor);
-      return acc;
-    }, {} as Record<BloodGroup, Donor[]>);
+      // Group donors by blood group for markers
+      const donorsByBloodGroup = donors.reduce((acc, donor) => {
+        if (!acc[donor.bloodGroup]) {
+          acc[donor.bloodGroup] = [];
+        }
+        acc[donor.bloodGroup].push(donor);
+        return acc;
+      }, {} as Record<BloodGroup, Donor[]>);
 
-    // Add markers for each blood group
-    Object.entries(donorsByBloodGroup).forEach(([bloodGroup, groupDonors]) => {
-      const color = BLOOD_GROUP_COLORS[bloodGroup as BloodGroup];
-      const locations = groupDonors
-        .map(d => `${d.latitude},${d.longitude}`)
-        .join('|');
-      url += `&markers=color:${color}|${locations}`;
-    });
+      // Add markers for each blood group
+      Object.entries(donorsByBloodGroup).forEach(([bloodGroup, groupDonors]) => {
+        const color = BLOOD_GROUP_COLORS[bloodGroup as BloodGroup];
+        const locations = groupDonors
+          .map(d => `${d.latitude},${d.longitude}`)
+          .join('|');
+        url += `&markers=color:${color}|${locations}`;
+      });
 
-    // Add circular paths around each donor
-    donors.forEach(donor => {
-      if (donor.latitude && donor.longitude) {
-        const color = BLOOD_GROUP_COLORS[donor.bloodGroup];
-        const circlePoints = generateCircle(donor.latitude, donor.longitude);
-        // Semi-transparent fill (1A opacity) and visible border (80 opacity)
-        url += `&path=color:${color}80|fillcolor:${color}1A|weight:2|${circlePoints}`;
-      }
-    });
+      // Add circular paths around each donor
+      donors.forEach(donor => {
+        if (donor.latitude && donor.longitude) {
+          const color = BLOOD_GROUP_COLORS[donor.bloodGroup];
+          const circlePoints = generateCircle(donor.latitude, donor.longitude);
+          // Semi-transparent fill (1A opacity) and visible border (80 opacity)
+          url += `&path=color:${color}80|fillcolor:${color}1A|weight:2|${circlePoints}`;
+        }
+      });
 
-    return url;
+      debug.log('DonorMap: Built URL successfully');
+      return url;
+    } catch (error) {
+      debug.error('DonorMap: Error building map URL:', error);
+      throw error;
+    }
   };
 
   const mapUrl = buildMapUrl();
+
+  // Debug logging for map URL
+  debug.log('DonorMap: Generated map URL:', {
+    urlLength: mapUrl.length,
+    containsApiKey: mapUrl.includes('key='),
+    exceedsLimit: mapUrl.length > 8192,
+    baseUrl: mapUrl.split('?')[0],
+  });
+
+  // Warn if URL is too long
+  if (mapUrl.length > 8192) {
+    debug.warn('DonorMap: Map URL exceeds Google Maps Static API limit of 8192 characters');
+  }
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -171,6 +213,23 @@ export function DonorMap({ donors }: DonorMapProps) {
           alt="Donor locations map"
           className="w-full h-auto"
           style={{ maxWidth: '100%', height: 'auto' }}
+          onError={(e) => {
+            debug.error('DonorMap: Failed to load map image', {
+              urlLength: mapUrl.length,
+              possibleIssues: [
+                'Invalid API key',
+                'API key restrictions (check Google Cloud Console)',
+                'URL too long (max 8192 characters)',
+                'API quota exceeded',
+                'Network error',
+              ]
+            });
+            // Replace with error placeholder
+            e.currentTarget.src = MAP_ERROR_SVG;
+          }}
+          onLoad={() => {
+            debug.log('DonorMap: Map image loaded successfully');
+          }}
         />
       </div>
 

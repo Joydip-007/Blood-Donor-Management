@@ -3,11 +3,17 @@ import { Search, MapPin, Droplet, Phone, Filter, Map as MapIcon } from 'lucide-r
 import { API_BASE_URL } from '../utils/api';
 import { BloodGroup, Donor } from '../types';
 import { DonorMap } from './DonorMap';
+import { debug } from '../utils/debug';
 
 export function DonorSearch() {
   const [donors, setDonors] = useState<Donor[]>([]);
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+
+  // Debug logging for viewMode changes
+  useEffect(() => {
+    debug.log('DonorSearch: viewMode changed to:', viewMode);
+  }, [viewMode]);
   
   const [filters, setFilters] = useState({
     bloodGroup: '' as BloodGroup | '',
@@ -52,6 +58,13 @@ export function DonorSearch() {
   }, []);
 
   const donorsWithLocation = donors.filter(d => d.latitude && d.longitude);
+
+  // Debug logging
+  debug.log('DonorSearch render:', {
+    viewMode,
+    totalDonors: donors.length,
+    donorsWithLocation: donorsWithLocation.length,
+  });
 
   return (
     <div className="space-y-6 md:space-y-8">
