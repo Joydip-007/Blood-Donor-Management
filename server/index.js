@@ -705,6 +705,13 @@ app.post('/api/donors/register', async (req, res) => {
 
     const { name, email, phone, alternatePhone, age, dateOfBirth, gender, bloodGroup, city, area, address, latitude, longitude } = req.body;
 
+    // Validate required fields
+    if (!name || !email || !phone || !gender || !bloodGroup || !city || !area) {
+      return res.status(400).json({ 
+        error: 'Missing required fields. Please provide: name, email, phone, gender, bloodGroup, city, and area.' 
+      });
+    }
+
     // Clean phone numbers
     const cleanedPhone = cleanPhoneNumber(phone);
     const cleanedAltPhone = alternatePhone ? cleanPhoneNumber(alternatePhone) : null;
@@ -814,7 +821,31 @@ app.post('/api/donors/register', async (req, res) => {
     res.json({ success: true, donor });
   } catch (error) {
     console.error('Error registering donor:', error);
-    res.status(500).json({ error: 'Failed to register donor' });
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      sqlState: error.sqlState,
+      sqlMessage: error.sqlMessage,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+    
+    // Provide more specific error messages for common issues
+    let errorMessage = 'Failed to register donor';
+    
+    if (error.code === 'ER_NO_SUCH_TABLE') {
+      errorMessage = 'Database tables not initialized. Please run database migrations.';
+    } else if (error.code === 'ER_DUP_ENTRY') {
+      errorMessage = 'Duplicate entry found. Email or phone number may already be registered.';
+    } else if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+      errorMessage = 'Database connection failed. Please check database configuration.';
+    } else if (error.code === 'ER_BAD_FIELD_ERROR') {
+      errorMessage = 'Database schema mismatch. Please check database migrations.';
+    } else if (process.env.NODE_ENV === 'development') {
+      // In development, provide the actual error message
+      errorMessage = `Failed to register donor: ${error.message}`;
+    }
+    
+    res.status(500).json({ error: errorMessage });
   }
 });
 
@@ -1924,26 +1955,51 @@ app.get('/api/health', async (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`Blood Donor Management API Server running on port ${PORT}`);
-  console.log(`Database: ${process.env.DB_NAME || 'blood_donor_management'} (MySQL)`);
-  console.log('ERD tables: LOCATION, BLOOD_GROUP, DONOR, CONTACT_NUMBER, BLOOD_COMPATIBILITY, EMERGENCY_REQUEST, OTP');
-  
-  if (resend && process.env.RESEND_API_KEY) {
-    console.log(`Email service: Resend API ✓ Configured`);
-    console.log(`From address: ${RESEND_FROM_EMAIL}`);
-  } else {
-    console.log(`Email service: ⚠️  Not configured (set RESEND_API_KEY and RESEND_FROM_EMAIL)`);
+async function startServer() {
+  try {
+    // Test database connection
+    await pool.execute('SELECT 1');
+    console.log('✓ Database connection successful');
+    
+    // Test if BLOOD_GROUP table has data
+    const [bloodGroups] = await pool.execute('SELECT COUNT(*) as count FROM BLOOD_GROUP');
+    if (bloodGroups[0].count === 0) {
+      console.warn('⚠️  WARNING: BLOOD_GROUP table is empty. Please populate it with blood group data.');
+    } else {
+      console.log(`✓ Blood groups loaded: ${bloodGroups[0].count} entries`);
+    }
+  } catch (error) {
+    console.error('❌ Database connection failed:', error.message);
+    console.error('Please check your database configuration in server/.env');
+    console.error('Required tables: LOCATION, BLOOD_GROUP, DONOR, CONTACT_NUMBER, BLOOD_COMPATIBILITY, EMERGENCY_REQUEST, OTP');
+    if (error.code === 'ECONNREFUSED') {
+      console.error('Make sure MySQL server is running');
+    }
   }
   
-  if (GEOCODING_CONFIG.enabled) {
-    const providerName = GEOCODING_CONFIG.provider === 'google' 
-      ? 'Google Maps Geocoding' 
-      : 'Locationiq';
-    console.log(`Geocoding: ${providerName} ✓ Configured`);
-  } else {
-    console.log(`Geocoding: ⚠️  Not configured (set GEOCODING_API_KEY)`);
-  }
-});
+  app.listen(PORT, () => {
+    console.log(`Blood Donor Management API Server running on port ${PORT}`);
+    console.log(`Database: ${process.env.DB_NAME || 'blood_donor_management'} (MySQL)`);
+    console.log('ERD tables: LOCATION, BLOOD_GROUP, DONOR, CONTACT_NUMBER, BLOOD_COMPATIBILITY, EMERGENCY_REQUEST, OTP');
+    
+    if (resend && process.env.RESEND_API_KEY) {
+      console.log(`Email service: Resend API ✓ Configured`);
+      console.log(`From address: ${RESEND_FROM_EMAIL}`);
+    } else {
+      console.log(`Email service: ⚠️  Not configured (set RESEND_API_KEY and RESEND_FROM_EMAIL)`);
+    }
+    
+    if (GEOCODING_CONFIG.enabled) {
+      const providerName = GEOCODING_CONFIG.provider === 'google' 
+        ? 'Google Maps Geocoding' 
+        : 'Locationiq';
+      console.log(`Geocoding: ${providerName} ✓ Configured`);
+    } else {
+      console.log(`Geocoding: ⚠️  Not configured (set GEOCODING_API_KEY)`);
+    }
+  });
+}
+
+startServer();
 
 module.exports = app;
