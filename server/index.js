@@ -386,10 +386,12 @@ async function getBloodGroupName(bgId) {
 async function getOrCreateLocation(city, area, latitude = null, longitude = null) {
   // Helper to safely parse coordinate - returns null for invalid values
   const parseCoordinate = (value) => {
-    if (value === null || value === undefined || value === '') {
+    // Return null for any empty/invalid input
+    if (value === null || value === undefined || value === '' || String(value).trim() === '') {
       return null;
     }
     const parsed = parseFloat(value);
+    // Return null if parseFloat resulted in NaN
     return isNaN(parsed) ? null : parsed;
   };
   
