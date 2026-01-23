@@ -368,8 +368,8 @@ export function DonorSearch() {
                       <div className="flex items-center gap-2">
                         <MapIcon size={14} className="flex-shrink-0" />
                         <span className="text-xs">
-                          {donor.latitude != null ? Number(donor.latitude).toFixed(4) : 'N/A'}, 
-                          {donor.longitude != null ? Number(donor.longitude).toFixed(4) : 'N/A'}
+                          {donor.latitude !== null && donor.latitude !== undefined ? Number(donor.latitude).toFixed(4) : 'N/A'}, 
+                          {donor.longitude !== null && donor.longitude !== undefined ? Number(donor.longitude).toFixed(4) : 'N/A'}
                         </span>
                       </div>
                       {donor.isAvailable && (

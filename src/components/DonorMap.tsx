@@ -106,12 +106,12 @@ export function DonorMap({ donors }: DonorMapProps) {
   }
 
   // Calculate map center (average of all coordinates)
-  const centerLat = donors.reduce((sum, d) => sum + (Number(d.latitude) || 0), 0) / donors.length;
-  const centerLng = donors.reduce((sum, d) => sum + (Number(d.longitude) || 0), 0) / donors.length;
+  const centerLat = donors.reduce((sum, d) => sum + (d.latitude !== null && d.latitude !== undefined ? Number(d.latitude) : 0), 0) / donors.length;
+  const centerLng = donors.reduce((sum, d) => sum + (d.longitude !== null && d.longitude !== undefined ? Number(d.longitude) : 0), 0) / donors.length;
 
   // Calculate zoom level based on coordinate spread
-  const lats = donors.map(d => Number(d.latitude) || 0);
-  const lngs = donors.map(d => Number(d.longitude) || 0);
+  const lats = donors.map(d => d.latitude !== null && d.latitude !== undefined ? Number(d.latitude) : 0);
+  const lngs = donors.map(d => d.longitude !== null && d.longitude !== undefined ? Number(d.longitude) : 0);
   const maxLat = Math.max(...lats);
   const minLat = Math.min(...lats);
   const maxLng = Math.max(...lngs);
