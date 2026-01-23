@@ -30,7 +30,29 @@
 #### Missing Blood Group Data
 - **Symptom:** Error: "Invalid blood group"
 - **Check:** Server logs should show "✓ Blood groups loaded: X entries"
-- **Solution:** Ensure BLOOD_GROUP table is populated (should have 8 entries: A+, A-, B+, B-, AB+, AB-, O+, O-)
+- **Solution:** Ensure BLOOD_GROUP table is populated with exactly 8 entries:
+  
+  **Required Blood Groups:**
+  ```sql
+  -- The BLOOD_GROUP table should contain these 8 entries:
+  -- bg_id | bg_name | rh_factor
+  -- ------+---------+----------
+  --   1   |   A     |    +
+  --   2   |   A     |    -
+  --   3   |   B     |    +
+  --   4   |   B     |    -
+  --   5   |   AB    |    +
+  --   6   |   AB    |    -
+  --   7   |   O     |    +
+  --   8   |   O     |    -
+  
+  -- Insert blood groups if missing:
+  INSERT INTO BLOOD_GROUP (bg_name, rh_factor) VALUES
+    ('A', '+'), ('A', '-'),
+    ('B', '+'), ('B', '-'),
+    ('AB', '+'), ('AB', '-'),
+    ('O', '+'), ('O', '-');
+  ```
 
 #### Missing Required Fields
 - **Symptom:** Error: "Missing required fields"

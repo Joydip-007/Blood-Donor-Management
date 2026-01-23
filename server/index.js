@@ -705,8 +705,8 @@ app.post('/api/donors/register', async (req, res) => {
 
     const { name, email, phone, alternatePhone, age, dateOfBirth, gender, bloodGroup, city, area, address, latitude, longitude } = req.body;
 
-    // Validate required fields
-    if (!name || !email || !phone || !gender || !bloodGroup || !city || !area) {
+    // Validate required fields (check for truthy values and non-empty strings)
+    if (!name?.trim() || !email?.trim() || !phone?.trim() || !gender?.trim() || !bloodGroup?.trim() || !city?.trim() || !area?.trim()) {
       return res.status(400).json({ 
         error: 'Missing required fields. Please provide: name, email, phone, gender, bloodGroup, city, and area.' 
       });
@@ -1961,12 +1961,18 @@ async function startServer() {
     await pool.execute('SELECT 1');
     console.log('✓ Database connection successful');
     
-    // Test if BLOOD_GROUP table has data
-    const [bloodGroups] = await pool.execute('SELECT COUNT(*) as count FROM BLOOD_GROUP');
-    if (bloodGroups[0].count === 0) {
-      console.warn('⚠️  WARNING: BLOOD_GROUP table is empty. Please populate it with blood group data.');
-    } else {
-      console.log(`✓ Blood groups loaded: ${bloodGroups[0].count} entries`);
+    // Test if BLOOD_GROUP table exists and has data
+    try {
+      const [bloodGroups] = await pool.execute('SELECT COUNT(*) as count FROM BLOOD_GROUP');
+      if (bloodGroups[0].count === 0) {
+        console.warn('⚠️  WARNING: BLOOD_GROUP table is empty. Please populate it with blood group data.');
+        console.warn('   Expected 8 entries: A+, A-, B+, B-, AB+, AB-, O+, O-');
+      } else {
+        console.log(`✓ Blood groups loaded: ${bloodGroups[0].count} entries`);
+      }
+    } catch (tableError) {
+      console.error('⚠️  WARNING: Could not check BLOOD_GROUP table:', tableError.message);
+      console.error('   Make sure database schema is properly initialized.');
     }
   } catch (error) {
     console.error('❌ Database connection failed:', error.message);
