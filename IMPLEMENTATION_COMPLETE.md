@@ -3,6 +3,23 @@
 ## Problem Statement
 Emergency request creators were unable to see search results (matched donors) after admin approval. Search results were only visible in the admin dashboard for approval/rejection purposes. The request creator had no way to access the matched donor information even after their request was approved.
 
+## Recent Changes (January 24, 2026)
+
+### 1. Removed Statistics Page from Donor Dashboard
+- **Rationale:** Statistics are administrative information that regular donors don't need to see
+- **Changes Made:**
+  - Removed the "📊 Statistics" tab from donor dashboard navigation
+  - Removed the statistics page rendering for non-admin users
+  - Statistics remain fully available in the admin dashboard
+- **Impact:** Simplified donor user interface, keeping statistics as admin-only feature
+
+### 2. Added Logo as Website Favicon
+- **Changes Made:**
+  - Created `logo.png` from existing `logo.jpeg`
+  - Added favicon link in `index.html` to display logo in browser tab
+  - Logo now appears alongside URL in browser tabs and bookmarks
+- **Impact:** Improved branding and easier identification of the application in browser tabs
+
 ## Solution Implemented
 
 ### Overview

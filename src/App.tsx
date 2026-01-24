@@ -290,7 +290,6 @@ function AppContent() {
     { id: 'profile' as const, name: '👤 My Profile', show: true },
     { id: 'emergency' as const, name: '🚨 Emergency Request', show: true },
     { id: 'search' as const, name: '🔍 Find Donors', show: true },
-    { id: 'stats' as const, name: '📊 Statistics', show: true },
   ].filter(tab => tab.show);
 
   return (
@@ -357,10 +356,6 @@ function AppContent() {
         
         {activeTab === 'search' && (
           <DonorSearch />
-        )}
-        
-        {activeTab === 'stats' && (
-          <Statistics />
         )}
       </main>
 
