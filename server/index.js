@@ -2123,6 +2123,15 @@ app.put('/api/admin/requests/:requestId/approve', isAdmin, async (req, res) => {
       [adminId || null, requestId]
     );
 
+    // Save matched donors to database
+    if (matchedDonors.length > 0) {
+      const values = matchedDonors.map(d => [requestId, d.id]);
+      await pool.query(
+        `INSERT INTO EMERGENCY_REQUEST_MATCHED_DONORS (request_id, donor_id) VALUES ?`,
+        [values]
+      );
+    }
+
     res.json({ 
       success: true, 
       message: 'Request approved successfully',
@@ -2208,10 +2217,193 @@ app.get('/api/requests/:requestId/status', async (req, res) => {
       rejectionReason: r.rejection_reason
     };
 
-    res.json({ success: true, request: formattedRequest });
+    // If request is approved, get matched donors
+    let matchedDonors = [];
+    if (r.status === 'approved') {
+      const [donorsData] = await pool.execute(
+        `SELECT d.donor_id, d.full_name, d.blood_group, 
+                l.city, l.area, l.latitude, l.longitude, 
+                bg.bg_name, bg.rh_factor
+         FROM EMERGENCY_REQUEST_MATCHED_DONORS erm
+         JOIN DONOR d ON erm.donor_id = d.donor_id
+         LEFT JOIN LOCATION l ON d.location_id = l.location_id
+         LEFT JOIN BLOOD_GROUP bg ON d.blood_group = bg.bg_id
+         WHERE erm.request_id = ?`,
+        [requestId]
+      );
+
+      // Get contact numbers for matched donors
+      const donorIds = donorsData.map(d => d.donor_id);
+      let contactsByDonor = {};
+      
+      if (donorIds.length > 0) {
+        const [contacts] = await pool.execute(
+          `SELECT donor_id, phone_number FROM CONTACT_NUMBER WHERE donor_id IN (${donorIds.map(() => '?').join(',')})`,
+          donorIds
+        );
+        contacts.forEach(c => {
+          if (!contactsByDonor[c.donor_id]) contactsByDonor[c.donor_id] = c.phone_number;
+        });
+      }
+
+      matchedDonors = donorsData.map(d => ({
+        id: d.donor_id.toString(),
+        name: d.full_name,
+        bloodGroup: `${d.bg_name}${d.rh_factor}`,
+        city: d.city || '',
+        area: d.area || '',
+        phone: contactsByDonor[d.donor_id] || '',
+        latitude: d.latitude,
+        longitude: d.longitude
+      }));
+    }
+
+    res.json({ 
+      success: true, 
+      request: formattedRequest,
+      matchedDonors: matchedDonors
+    });
   } catch (error) {
     console.error('Error fetching request status:', error);
     res.status(500).json({ error: 'Failed to fetch request status' });
+  }
+});
+
+// Get all emergency requests by contact number (for request creator to view their requests)
+app.get('/api/requests/my-requests/:contactNumber', async (req, res) => {
+  try {
+    const { contactNumber } = req.params;
+
+    // Clean phone number (remove spaces, dashes, etc.)
+    const cleanedPhone = contactNumber.replace(/[\s\-\(\)]/g, '');
+
+    const [requests] = await pool.execute(
+      `SELECT er.*, l.city, l.area, bg.bg_name, bg.rh_factor
+       FROM EMERGENCY_REQUEST er
+       LEFT JOIN LOCATION l ON er.location_id = l.location_id
+       LEFT JOIN BLOOD_GROUP bg ON er.blood_group = bg.bg_id
+       WHERE er.contact_number = ?
+       ORDER BY er.created_at DESC`,
+      [cleanedPhone]
+    );
+
+    const formattedRequests = await Promise.all(requests.map(async (r) => {
+      const baseRequest = {
+        id: r.request_id.toString(),
+        patientName: r.patient_name,
+        bloodGroup: `${r.bg_name}${r.rh_factor}`,
+        unitsRequired: r.units_required,
+        hospitalName: r.hospital_name,
+        city: r.city || '',
+        area: r.area || '',
+        urgency: r.urgency,
+        requiredBy: r.required_by,
+        contactNumber: r.contact_number,
+        notes: r.notes,
+        status: r.status,
+        createdAt: r.created_at,
+        approvedAt: r.approved_at,
+        rejectionReason: r.rejection_reason
+      };
+
+      // If request is approved, get matched donors
+      let matchedDonors = [];
+      if (r.status === 'approved') {
+        const [donorsData] = await pool.execute(
+          `SELECT d.donor_id, d.full_name, d.blood_group, 
+                  l.city, l.area, l.latitude, l.longitude, 
+                  bg.bg_name, bg.rh_factor
+           FROM EMERGENCY_REQUEST_MATCHED_DONORS erm
+           JOIN DONOR d ON erm.donor_id = d.donor_id
+           LEFT JOIN LOCATION l ON d.location_id = l.location_id
+           LEFT JOIN BLOOD_GROUP bg ON d.blood_group = bg.bg_id
+           WHERE erm.request_id = ?`,
+          [r.request_id]
+        );
+
+        // Get contact numbers for matched donors
+        const donorIds = donorsData.map(d => d.donor_id);
+        let contactsByDonor = {};
+        
+        if (donorIds.length > 0) {
+          const [contacts] = await pool.execute(
+            `SELECT donor_id, phone_number FROM CONTACT_NUMBER WHERE donor_id IN (${donorIds.map(() => '?').join(',')})`,
+            donorIds
+          );
+          contacts.forEach(c => {
+            if (!contactsByDonor[c.donor_id]) contactsByDonor[c.donor_id] = c.phone_number;
+          });
+        }
+
+        matchedDonors = donorsData.map(d => ({
+          id: d.donor_id.toString(),
+          name: d.full_name,
+          bloodGroup: `${d.bg_name}${d.rh_factor}`,
+          city: d.city || '',
+          area: d.area || '',
+          phone: contactsByDonor[d.donor_id] || '',
+          latitude: d.latitude,
+          longitude: d.longitude
+        }));
+      }
+
+      return {
+        ...baseRequest,
+        matchedDonors: matchedDonors
+      };
+    }));
+
+    res.json({ 
+      success: true, 
+      requests: formattedRequests,
+      count: formattedRequests.length
+    });
+  } catch (error) {
+    console.error('Error fetching user requests:', error);
+    res.status(500).json({ error: 'Failed to fetch user requests' });
+  }
+});
+
+// Delete emergency request (only by creator using their contact number)
+app.delete('/api/requests/:requestId', async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { contactNumber } = req.body;
+
+    if (!contactNumber) {
+      return res.status(400).json({ error: 'Contact number is required' });
+    }
+
+    // Clean phone number
+    const cleanedPhone = contactNumber.replace(/[\s\-\(\)]/g, '');
+
+    // Verify the request belongs to this contact number
+    const [requests] = await pool.execute(
+      `SELECT request_id, contact_number FROM EMERGENCY_REQUEST WHERE request_id = ?`,
+      [requestId]
+    );
+
+    if (requests.length === 0) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+
+    if (requests[0].contact_number !== cleanedPhone) {
+      return res.status(403).json({ error: 'Unauthorized to delete this request' });
+    }
+
+    // Delete the request (matched donors will be deleted automatically due to CASCADE)
+    await pool.execute(
+      `DELETE FROM EMERGENCY_REQUEST WHERE request_id = ?`,
+      [requestId]
+    );
+
+    res.json({ 
+      success: true, 
+      message: 'Request deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting request:', error);
+    res.status(500).json({ error: 'Failed to delete request' });
   }
 });
 
