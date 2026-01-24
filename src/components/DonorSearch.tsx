@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Droplet, Phone, Map as MapIcon, Filter } from 'lucide-react';
+import { MapPin, Map as MapIcon, Filter } from 'lucide-react';
 import { API_BASE_URL } from '../utils/api';
 import { BloodGroup, Donor } from '../types';
 import { DonorMap } from './DonorMap';
@@ -13,7 +13,6 @@ export function DonorSearch() {
     bloodGroup: '' as BloodGroup | '',
     city: '',
     area: '',
-    isAvailable: true,
   });
 
   const bloodGroups: BloodGroup[] = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
@@ -78,11 +77,6 @@ export function DonorSearch() {
       return false;
     }
     
-    // Filter by availability
-    if (filters.isAvailable !== undefined && donor.isAvailable !== filters.isAvailable) {
-      return false;
-    }
-    
     return true;
   });
 
@@ -104,7 +98,7 @@ export function DonorSearch() {
           <Filter size={20} className="text-red-600" />
           Filter Donors
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           <div>
             <label className="block text-sm md:text-base font-semibold text-gray-700 mb-2">
               Blood Group
@@ -146,20 +140,6 @@ export function DonorSearch() {
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-base min-h-[44px]"
             />
           </div>
-
-          <div>
-            <label className="block text-sm md:text-base font-semibold text-gray-700 mb-2">
-              Availability
-            </label>
-            <select
-              value={filters.isAvailable ? 'available' : 'all'}
-              onChange={(e) => setFilters({ ...filters, isAvailable: e.target.value === 'available' })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-base min-h-[44px]"
-            >
-              <option value="available">Available Only</option>
-              <option value="all">All Donors</option>
-            </select>
-          </div>
         </div>
         
         {/* Show filter status */}
@@ -194,50 +174,6 @@ export function DonorSearch() {
           <div className="space-y-4 md:space-y-6">
             {/* Donor Location Map */}
             <DonorMap donors={donorsWithLocation} />
-
-            {/* Donor Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-              {donorsWithLocation.map((donor) => (
-                <div key={donor.id} className="border border-gray-200 rounded-lg p-4 md:p-5 hover:shadow-md transition-shadow">
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-base md:text-lg">{donor.name}</h4>
-                      <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium inline-flex items-center gap-1 mt-2">
-                        <Droplet size={12} />
-                        {donor.bloodGroup}
-                      </span>
-                    </div>
-                    {donor.isAvailable && (
-                      <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
-                        Available
-                      </span>
-                    )}
-                  </div>
-                  <div className="space-y-2 text-sm md:text-base text-gray-700">
-                    <div className="flex items-center gap-2">
-                      <MapPin size={14} className="flex-shrink-0" />
-                      <span>{donor.area}, {donor.city}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <MapIcon size={14} className="flex-shrink-0" />
-                      <span className="text-xs">
-                        {donor.latitude !== null && donor.latitude !== undefined ? Number(donor.latitude).toFixed(4) : 'N/A'}, 
-                        {donor.longitude !== null && donor.longitude !== undefined ? Number(donor.longitude).toFixed(4) : 'N/A'}
-                      </span>
-                    </div>
-                    {donor.isAvailable && (
-                      <a
-                        href={`tel:${donor.phone}`}
-                        className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium min-h-[44px] pt-2"
-                      >
-                        <Phone size={14} />
-                        {donor.phone}
-                      </a>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
         ) : (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 md:p-8 text-center">
@@ -250,18 +186,6 @@ export function DonorSearch() {
             </p>
           </div>
         )}
-      </div>
-
-      {/* Info Box */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 md:p-6">
-        <h4 className="font-semibold text-blue-900 mb-3 text-base md:text-lg">Filtering Features</h4>
-        <ul className="text-sm md:text-base text-blue-800 space-y-2">
-          <li>✓ All available donors displayed automatically on page load</li>
-          <li>✓ Instant client-side filtering by blood group, city, and area</li>
-          <li>✓ Real-time availability updates based on 90-day donation rule</li>
-          <li>✓ Privacy-protected contact details (shown only for available donors)</li>
-          <li>✓ Location-based map view for quick donor identification</li>
-        </ul>
       </div>
     </div>
   );
