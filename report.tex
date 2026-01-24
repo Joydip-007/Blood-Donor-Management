@@ -1,0 +1,1261 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{booktabs}
+
+% Page geometry
+\geometry{a4paper, margin=1in}
+
+% Header and footer
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Blood Donor Management System}
+\lhead{Project Report}
+\rfoot{Page \thepage}
+
+% Hyperlinks
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    pdftitle={Blood Donor Management System Report},
+    pdfpagemode=FullScreen,
+}
+
+% SQL Code Listing Configuration
+\lstdefinestyle{sql}{
+    language=SQL,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue}\bfseries,
+    stringstyle=\color{red},
+    commentstyle=\color{gray}\itshape,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    stepnumber=1,
+    numbersep=8pt,
+    showstringspaces=false,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    captionpos=b,
+    tabsize=2
+}
+
+\lstset{style=sql}
+
+% Title page
+\title{
+    \Huge\textbf{Blood Donor Management System} \\
+    \vspace{0.5cm}
+    \Large Project Report
+}
+
+\author{
+    \textbf{A Modern Web Application for Managing Blood Donors}
+}
+
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\vfill
+\begin{center}
+    \textbf{Live Application:} \\
+    \url{https://blood-donor-management.vercel.app}
+\end{center}
+
+\newpage
+
+\tableofcontents
+\newpage
+
+% Abstract
+\section*{Abstract}
+\addcontentsline{toc}{section}{Abstract}
+
+The Blood Donor Management System is a comprehensive web application designed to streamline blood donation management processes. Built with modern web technologies, this system facilitates efficient donor registration, profile management, emergency blood request handling, and location-based donor search capabilities.
+
+\subsection*{Technology Stack}
+\begin{itemize}
+    \item \textbf{Frontend:} React 18, TypeScript, Tailwind CSS, Vite
+    \item \textbf{Backend:} Node.js, Express.js
+    \item \textbf{Database:} PostgreSQL (MySQL compatible)
+    \item \textbf{Authentication:} JWT with OTP verification
+    \item \textbf{Maps:} Google Maps Static API for donor location visualization
+    \item \textbf{Email Service:} Resend for OTP delivery
+\end{itemize}
+
+\subsection*{Key Objectives}
+\begin{itemize}
+    \item Enable efficient donor registration and authentication
+    \item Facilitate quick donor searches based on blood group, location, and availability
+    \item Manage emergency blood requests with admin approval workflow
+    \item Provide location-based services using geocoding and map visualization
+    \item Ensure data integrity through robust database design with foreign key constraints
+\end{itemize}
+
+\newpage
+
+% Introduction
+\section{Introduction}
+
+\subsection{Purpose of the System}
+Blood donation is a critical aspect of healthcare systems worldwide. The Blood Donor Management System addresses the challenge of connecting blood donors with those in need efficiently. The system provides a centralized platform where:
+\begin{itemize}
+    \item Donors can register and maintain their profiles
+    \item Hospitals and individuals can submit emergency blood requests
+    \item Administrators can manage donors and approve emergency requests
+    \item Blood group compatibility is automatically handled
+    \item Location-based searching helps find nearby donors quickly
+\end{itemize}
+
+\subsection{Problem Statement}
+Traditional blood donation systems often face challenges such as:
+\begin{itemize}
+    \item Difficulty in quickly locating available donors during emergencies
+    \item Manual processes for donor registration and verification
+    \item Lack of real-time donor availability tracking
+    \item Inefficient blood group compatibility matching
+    \item Limited geographic search capabilities
+\end{itemize}
+
+\subsection{Scope and Objectives}
+This system aims to:
+\begin{itemize}
+    \item Provide a secure, OTP-verified registration system
+    \item Enable real-time donor availability tracking
+    \item Implement automatic blood group compatibility checking
+    \item Offer location-based donor search with Google Maps integration
+    \item Support emergency request workflow with admin approval
+    \item Maintain comprehensive donor profiles with contact information
+    \item Generate statistics and reports for better decision-making
+\end{itemize}
+
+\newpage
+
+% System Architecture
+\section{System Architecture}
+
+\subsection{Frontend Architecture}
+The frontend is built using modern React 18 with TypeScript, providing:
+\begin{itemize}
+    \item \textbf{Component-Based Architecture:} Modular components for Auth, Admin, and donor features
+    \item \textbf{State Management:} React Context API for authentication state
+    \item \textbf{Styling:} Tailwind CSS for responsive, modern UI design
+    \item \textbf{Build Tool:} Vite for fast development and optimized production builds
+    \item \textbf{Type Safety:} TypeScript for compile-time type checking
+\end{itemize}
+
+\subsection{Backend Architecture}
+The backend uses Node.js with Express.js:
+\begin{itemize}
+    \item \textbf{RESTful API:} Clean API endpoints for all operations
+    \item \textbf{Database Connection:} MySQL connection pooling for efficient database access
+    \item \textbf{Authentication:} JWT tokens with OTP verification
+    \item \textbf{Email Service:} Resend integration for OTP delivery
+    \item \textbf{Geocoding:} Google Maps Geocoding API integration
+    \item \textbf{Session Management:} In-memory session store (Redis recommended for production)
+\end{itemize}
+
+\subsection{Database Design}
+PostgreSQL database following an Entity-Relationship Design (ERD):
+\begin{itemize}
+    \item \textbf{Normalized Schema:} Third normal form (3NF) design
+    \item \textbf{Foreign Key Constraints:} Ensuring referential integrity
+    \item \textbf{Indexes:} Strategic indexing for query optimization
+    \item \textbf{Data Types:} Proper use of DECIMAL for coordinates, ENUM for status fields
+\end{itemize}
+
+\subsection{Authentication Flow}
+\begin{enumerate}
+    \item User submits email/phone for registration
+    \item System generates 6-digit OTP
+    \item OTP sent via Resend email service
+    \item User verifies OTP (10-minute expiration)
+    \item JWT token generated upon successful verification
+    \item Token used for subsequent authenticated requests
+\end{enumerate}
+
+\newpage
+
+% Features and Functionality
+\section{Features and Functionality with SQL Queries}
+
+\subsection{Feature 1: User Registration \& Authentication}
+
+\subsubsection{Description}
+Users can register using their email address with OTP verification. The system supports:
+\begin{itemize}
+    \item Email-based registration with duplicate checking
+    \item Phone-based login (alternative identifier)
+    \item 6-digit OTP generation and verification
+    \item JWT token generation for session management
+    \item Account activation/deactivation
+\end{itemize}
+
+\subsubsection{Frontend \& Backend Interaction}
+\begin{enumerate}
+    \item User submits registration form with personal details
+    \item Backend validates input and checks for existing users
+    \item System generates OTP and sends via email
+    \item User enters OTP on verification page
+    \item Backend verifies OTP and creates donor record
+    \item JWT token returned to frontend for authenticated access
+\end{enumerate}
+
+\subsubsection{SQL Queries}
+
+\textbf{Check for existing user by email:}
+\begin{lstlisting}[caption={Check existing donor}]
+SELECT donor_id FROM DONOR WHERE email = ?
+\end{lstlisting}
+
+\textbf{Check for existing user by phone number:}
+\begin{lstlisting}[caption={Check existing donor by phone}]
+SELECT cn.donor_id, d.is_active 
+FROM CONTACT_NUMBER cn 
+JOIN DONOR d ON cn.donor_id = d.donor_id 
+WHERE cn.phone_number = ?
+\end{lstlisting}
+
+\textbf{Insert new donor:}
+\begin{lstlisting}[caption={Create new donor record}]
+INSERT INTO DONOR (
+    full_name, age, gender, email, blood_group, 
+    availability, last_donate, is_active, location_id
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+\end{lstlisting}
+
+\textbf{Store primary contact number:}
+\begin{lstlisting}[caption={Store primary phone number}]
+INSERT INTO CONTACT_NUMBER (donor_id, phone_number) 
+VALUES (?, ?)
+\end{lstlisting}
+
+\textbf{Store alternate contact number (if provided):}
+\begin{lstlisting}[caption={Store alternate phone number}]
+INSERT INTO CONTACT_NUMBER (donor_id, phone_number) 
+VALUES (?, ?)
+\end{lstlisting}
+
+\textbf{Get blood group ID by name:}
+\begin{lstlisting}[caption={Retrieve blood group ID}]
+SELECT bg_id FROM BLOOD_GROUP 
+WHERE bg_name = ? AND rh_factor = ?
+\end{lstlisting}
+
+\textbf{Verify donor credentials for login:}
+\begin{lstlisting}[caption={Verify login credentials}]
+SELECT donor_id, is_active FROM DONOR WHERE email = ?
+\end{lstlisting}
+
+\newpage
+
+\subsection{Feature 2: Donor Profile Management}
+
+\subsubsection{Description}
+Complete donor profile management including:
+\begin{itemize}
+    \item Personal information (name, age, gender)
+    \item Blood group and availability status
+    \item Location information (city, area, coordinates)
+    \item Multiple contact numbers
+    \item Last donation date tracking
+    \item Profile updates and geocoding
+\end{itemize}
+
+\subsubsection{Frontend \& Backend Interaction}
+\begin{enumerate}
+    \item Authenticated user requests profile data via JWT
+    \item Backend retrieves donor information with joined location data
+    \item Frontend displays profile in editable form
+    \item User updates information and submits
+    \item Backend validates, geocodes new location if changed, updates database
+    \item Success confirmation returned to frontend
+\end{enumerate}
+
+\subsubsection{SQL Queries}
+
+\textbf{Get donor profile with location:}
+\begin{lstlisting}[caption={Retrieve complete donor profile}]
+SELECT d.*, l.city, l.area, l.latitude, l.longitude 
+FROM DONOR d 
+LEFT JOIN LOCATION l ON d.location_id = l.location_id 
+WHERE d.donor_id = ?
+\end{lstlisting}
+
+\textbf{Get contact numbers:}
+\begin{lstlisting}[caption={Retrieve donor contact numbers}]
+SELECT phone_number FROM CONTACT_NUMBER 
+WHERE donor_id = ? 
+ORDER BY contact_id
+\end{lstlisting}
+
+\textbf{Get blood group name from ID:}
+\begin{lstlisting}[caption={Get blood group details}]
+SELECT bg_name, rh_factor FROM BLOOD_GROUP 
+WHERE bg_id = ?
+\end{lstlisting}
+
+\textbf{Check if location exists:}
+\begin{lstlisting}[caption={Find existing location}]
+SELECT location_id FROM LOCATION 
+WHERE city = ? AND area = ?
+\end{lstlisting}
+
+\textbf{Insert new location with coordinates:}
+\begin{lstlisting}[caption={Create new location}]
+INSERT INTO LOCATION (city, area, latitude, longitude) 
+VALUES (?, ?, ?, ?)
+\end{lstlisting}
+
+\textbf{Update location coordinates:}
+\begin{lstlisting}[caption={Update geocoded coordinates}]
+UPDATE LOCATION 
+SET latitude = ?, longitude = ? 
+WHERE location_id = ? 
+AND (latitude IS NULL OR longitude IS NULL)
+\end{lstlisting}
+
+\textbf{Update donor location:}
+\begin{lstlisting}[caption={Update donor location reference}]
+UPDATE DONOR SET location_id = ? WHERE donor_id = ?
+\end{lstlisting}
+
+\textbf{Get existing contact IDs:}
+\begin{lstlisting}[caption={Retrieve contact IDs for update}]
+SELECT contact_id FROM CONTACT_NUMBER 
+WHERE donor_id = ? 
+ORDER BY contact_id
+\end{lstlisting}
+
+\textbf{Update primary contact number:}
+\begin{lstlisting}[caption={Update first contact number}]
+UPDATE CONTACT_NUMBER 
+SET phone_number = ? 
+WHERE contact_id = ?
+\end{lstlisting}
+
+\textbf{Update alternate contact number:}
+\begin{lstlisting}[caption={Update second contact number}]
+UPDATE CONTACT_NUMBER 
+SET phone_number = ? 
+WHERE contact_id = ?
+\end{lstlisting}
+
+\textbf{Insert new contact number:}
+\begin{lstlisting}[caption={Add new contact number}]
+INSERT INTO CONTACT_NUMBER (donor_id, phone_number) 
+VALUES (?, ?)
+\end{lstlisting}
+
+\textbf{Update last donation date and availability:}
+\begin{lstlisting}[caption={Update donation information}]
+UPDATE DONOR 
+SET last_donate = ?, availability = ? 
+WHERE donor_id = ?
+\end{lstlisting}
+
+\newpage
+
+\subsection{Feature 3: Donor Search}
+
+\subsubsection{Description}
+Advanced donor search functionality with filters:
+\begin{itemize}
+    \item Search by blood group (with compatibility matching)
+    \item Filter by city and area (partial matching)
+    \item Filter by availability status
+    \item Exclude inactive donors
+    \item Return geocoded locations for map display
+\end{itemize}
+
+\subsubsection{Frontend \& Backend Interaction}
+\begin{enumerate}
+    \item User enters search criteria (blood group, location, availability)
+    \item Frontend sends POST request with filter parameters
+    \item Backend builds dynamic SQL query with WHERE clauses
+    \item Query executes with proper joins for blood group and location
+    \item Contact numbers fetched separately for matched donors
+    \item Results formatted and returned with availability calculated from last donation date
+    \item Frontend displays donors in list/map view
+\end{enumerate}
+
+\subsubsection{SQL Queries}
+
+\textbf{Base donor search query:}
+\begin{lstlisting}[caption={Search donors with filters}]
+SELECT d.*, l.city, l.area, l.latitude, l.longitude, 
+       bg.bg_name, bg.rh_factor
+FROM DONOR d 
+LEFT JOIN LOCATION l ON d.location_id = l.location_id
+LEFT JOIN BLOOD_GROUP bg ON d.blood_group = bg.bg_id
+WHERE d.is_active = TRUE
+\end{lstlisting}
+
+\textbf{Filter by blood group (added dynamically):}
+\begin{lstlisting}[caption={Add blood group filter}]
+-- Appended to base query when bloodGroup parameter provided
+AND d.blood_group = ?
+\end{lstlisting}
+
+\textbf{Filter by city (added dynamically):}
+\begin{lstlisting}[caption={Add city filter}]
+-- Appended to base query when city parameter provided
+AND LOWER(l.city) LIKE LOWER(?)
+-- Parameter: '%{city}%' for partial matching
+\end{lstlisting}
+
+\textbf{Filter by area (added dynamically):}
+\begin{lstlisting}[caption={Add area filter}]
+-- Appended to base query when area parameter provided
+AND LOWER(l.area) LIKE LOWER(?)
+-- Parameter: '%{area}%' for partial matching
+\end{lstlisting}
+
+\textbf{Get contact numbers for matched donors:}
+\begin{lstlisting}[caption={Fetch contact numbers}]
+-- Dynamic query with IN clause built from donor IDs
+SELECT donor_id, phone_number 
+FROM CONTACT_NUMBER 
+WHERE donor_id IN (?, ?, ?)
+-- Placeholders generated based on number of matched donors
+\end{lstlisting}
+
+\textbf{Get compatible donor blood groups:}
+\begin{lstlisting}[caption={Find compatible blood groups}]
+SELECT DISTINCT donor_bg 
+FROM BLOOD_COMPATIBILITY 
+WHERE receiver_bg = ?
+\end{lstlisting}
+
+\newpage
+
+\subsection{Feature 4: Emergency Blood Requests}
+
+\subsubsection{Description}
+Comprehensive emergency request system:
+\begin{itemize}
+    \item Submit emergency blood requests with patient details
+    \item Specify urgency level (critical, high, medium)
+    \item Set required-by date and units needed
+    \item Admin approval workflow
+    \item Match compatible donors to approved requests
+    \item Track request status (pending, approved, rejected, completed)
+\end{itemize}
+
+\subsubsection{Frontend \& Backend Interaction}
+\begin{enumerate}
+    \item User/hospital submits emergency request form
+    \item Backend validates and creates request with 'pending' status
+    \item Admin views all requests in dashboard
+    \item Admin approves request and selects compatible donors
+    \item System creates matched donor records
+    \item Matched donors can be viewed for each request
+    \item Request status updated throughout lifecycle
+\end{enumerate}
+
+\subsubsection{SQL Queries}
+
+\textbf{Create emergency request:}
+\begin{lstlisting}[caption={Insert emergency request}]
+INSERT INTO EMERGENCY_REQUEST (
+    patient_name, blood_group, hospital_name, 
+    units_required, urgency, required_by, 
+    contact_number, notes, status, location_id, created_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, NOW())
+\end{lstlisting}
+
+\textbf{Get all requests for admin:}
+\begin{lstlisting}[caption={Retrieve all emergency requests}]
+SELECT er.*, bg.bg_name, bg.rh_factor, l.city, l.area
+FROM EMERGENCY_REQUEST er
+INNER JOIN BLOOD_GROUP bg ON er.blood_group = bg.bg_id
+LEFT JOIN LOCATION l ON er.location_id = l.location_id
+ORDER BY er.created_at DESC
+\end{lstlisting}
+
+\textbf{Get requests by status:}
+\begin{lstlisting}[caption={Filter requests by status}]
+SELECT er.*, l.city, l.area, bg.bg_name, bg.rh_factor
+FROM EMERGENCY_REQUEST er
+INNER JOIN BLOOD_GROUP bg ON er.blood_group = bg.bg_id
+LEFT JOIN LOCATION l ON er.location_id = l.location_id
+WHERE er.status = ?
+ORDER BY FIELD(er.urgency, 'critical', 'high', 'medium'),
+         er.created_at DESC
+\end{lstlisting}
+
+\textbf{Get single request details:}
+\begin{lstlisting}[caption={Retrieve specific request}]
+SELECT er.*, l.city, l.area
+FROM EMERGENCY_REQUEST er
+LEFT JOIN LOCATION l ON er.location_id = l.location_id
+WHERE er.request_id = ?
+\end{lstlisting}
+
+\textbf{Find compatible donors for request:}
+\begin{lstlisting}[caption={Search compatible donors}]
+SELECT d.donor_id, d.full_name, d.blood_group, 
+       d.availability, d.last_donate, 
+       l.city, l.area, l.latitude, l.longitude,
+       bg.bg_name, bg.rh_factor
+FROM DONOR d
+INNER JOIN BLOOD_GROUP bg ON d.blood_group = bg.bg_id
+LEFT JOIN LOCATION l ON d.location_id = l.location_id
+WHERE d.is_active = TRUE 
+AND d.availability = TRUE
+AND d.blood_group IN (?, ?, ?)
+-- Blood group IDs from BLOOD_COMPATIBILITY table
+\end{lstlisting}
+
+\textbf{Approve emergency request:}
+\begin{lstlisting}[caption={Update request to approved}]
+UPDATE EMERGENCY_REQUEST 
+SET status = 'approved', 
+    admin_id = ?, 
+    approved_at = NOW() 
+WHERE request_id = ?
+\end{lstlisting}
+
+\textbf{Match donors to request:}
+\begin{lstlisting}[caption={Create donor matches}]
+INSERT INTO EMERGENCY_REQUEST_MATCHED_DONORS 
+    (request_id, donor_id) 
+VALUES (?, ?)
+-- Executed multiple times for each matched donor
+\end{lstlisting}
+
+\textbf{Get matched donors for request:}
+\begin{lstlisting}[caption={Retrieve matched donors}]
+SELECT d.donor_id, d.full_name, d.blood_group, 
+       d.availability, d.last_donate,
+       l.city, l.area, l.latitude, l.longitude,
+       bg.bg_name, bg.rh_factor
+FROM EMERGENCY_REQUEST_MATCHED_DONORS erm
+INNER JOIN DONOR d ON erm.donor_id = d.donor_id
+INNER JOIN BLOOD_GROUP bg ON d.blood_group = bg.bg_id
+LEFT JOIN LOCATION l ON d.location_id = l.location_id
+WHERE erm.request_id = ?
+\end{lstlisting}
+
+\textbf{Get matched donor contact numbers:}
+\begin{lstlisting}[caption={Fetch matched donor contacts}]
+SELECT donor_id, phone_number 
+FROM CONTACT_NUMBER 
+WHERE donor_id IN (?, ?, ?)
+-- Dynamic IN clause based on matched donors
+\end{lstlisting}
+
+\textbf{Reject emergency request:}
+\begin{lstlisting}[caption={Update request to rejected}]
+UPDATE EMERGENCY_REQUEST 
+SET status = 'rejected', 
+    admin_id = ?, 
+    rejection_reason = ?, 
+    updated_at = NOW() 
+WHERE request_id = ?
+\end{lstlisting}
+
+\textbf{Delete emergency request:}
+\begin{lstlisting}[caption={Remove emergency request}]
+DELETE FROM EMERGENCY_REQUEST WHERE request_id = ?
+-- Cascade deletes matched donors due to FK constraint
+\end{lstlisting}
+
+\newpage
+
+\subsection{Feature 5: Admin Dashboard}
+
+\subsubsection{Description}
+Comprehensive administrative features:
+\begin{itemize}
+    \item View all registered donors with complete information
+    \item Add donors manually (bypassing OTP verification)
+    \item Edit donor profiles and blood groups
+    \item Activate/deactivate donor accounts
+    \item Toggle donor availability
+    \item View blood group statistics
+    \item Manage emergency requests
+    \item Geocode locations without coordinates
+\end{itemize}
+
+\subsubsection{Frontend \& Backend Interaction}
+\begin{enumerate}
+    \item Admin logs in with special admin email
+    \item Dashboard loads all donors with statistics
+    \item Admin can perform CRUD operations on donor records
+    \item Changes immediately reflected in database
+    \item Bulk operations available for geocoding
+    \item Statistics updated in real-time
+\end{enumerate}
+
+\subsubsection{SQL Queries}
+
+\textbf{Get all donors with details:}
+\begin{lstlisting}[caption={Retrieve all donors for admin}]
+SELECT d.*, l.city, l.area, l.latitude, l.longitude, 
+       bg.bg_name, bg.rh_factor
+FROM DONOR d
+INNER JOIN BLOOD_GROUP bg ON d.blood_group = bg.bg_id
+LEFT JOIN LOCATION l ON d.location_id = l.location_id
+\end{lstlisting}
+
+\textbf{Get contact numbers for all donors:}
+\begin{lstlisting}[caption={Fetch all donor contacts}]
+SELECT donor_id, phone_number 
+FROM CONTACT_NUMBER 
+WHERE donor_id IN (?, ?, ?)
+-- Dynamic IN clause for all donor IDs
+\end{lstlisting}
+
+\textbf{Activate donor account:}
+\begin{lstlisting}[caption={Activate donor}]
+UPDATE DONOR SET is_active = TRUE WHERE donor_id = ?
+\end{lstlisting}
+
+\textbf{Deactivate donor account:}
+\begin{lstlisting}[caption={Deactivate donor}]
+UPDATE DONOR SET is_active = FALSE WHERE donor_id = ?
+\end{lstlisting}
+
+\textbf{Toggle donor availability:}
+\begin{lstlisting}[caption={Update availability status}]
+UPDATE DONOR SET availability = ? WHERE donor_id = ?
+\end{lstlisting}
+
+\textbf{Check donor exists:}
+\begin{lstlisting}[caption={Verify donor exists}]
+SELECT donor_id FROM DONOR WHERE donor_id = ?
+\end{lstlisting}
+
+\textbf{Get donor activity status:}
+\begin{lstlisting}[caption={Check donor is active}]
+SELECT donor_id, is_active FROM DONOR WHERE donor_id = ?
+\end{lstlisting}
+
+\textbf{Check available donor:}
+\begin{lstlisting}[caption={Verify donor is active and available}]
+SELECT donor_id FROM DONOR 
+WHERE donor_id = ? AND is_active = TRUE
+\end{lstlisting}
+
+\textbf{Get existing donor location:}
+\begin{lstlisting}[caption={Retrieve current donor location}]
+SELECT l.city, l.area, d.location_id 
+FROM DONOR d 
+JOIN LOCATION l ON d.location_id = l.location_id 
+WHERE d.donor_id = ?
+\end{lstlisting}
+
+\textbf{Update donor information (dynamic):}
+\begin{lstlisting}[caption={Update donor fields}]
+-- Dynamic query built based on provided fields
+UPDATE DONOR 
+SET full_name = ?, age = ?, gender = ?, 
+    blood_group = ?, availability = ?, last_donate = ? 
+WHERE donor_id = ?
+\end{lstlisting}
+
+\textbf{Get locations without coordinates:}
+\begin{lstlisting}[caption={Find locations needing geocoding}]
+SELECT location_id, city, area 
+FROM LOCATION 
+WHERE latitude IS NULL OR longitude IS NULL
+\end{lstlisting}
+
+\textbf{Update location with geocoded coordinates:}
+\begin{lstlisting}[caption={Save geocoded coordinates}]
+UPDATE LOCATION 
+SET latitude = ?, longitude = ? 
+WHERE location_id = ?
+\end{lstlisting}
+
+\textbf{Get blood group statistics:}
+\begin{lstlisting}[caption={Calculate donor counts by blood group}]
+SELECT bg.bg_name, bg.rh_factor, COUNT(*) as count 
+FROM DONOR d 
+INNER JOIN BLOOD_GROUP bg ON d.blood_group = bg.bg_id 
+WHERE d.is_active = TRUE 
+GROUP BY bg.bg_id
+\end{lstlisting}
+
+\newpage
+
+\subsection{Feature 6: Location-based Services with Google Maps Static API}
+
+\subsubsection{Description}
+Comprehensive location services:
+\begin{itemize}
+    \item Geocoding city/area to latitude/longitude using Google Maps Geocoding API
+    \item Visual donor location display using Google Maps Static API
+    \item Store geocoded coordinates in DECIMAL format for precision
+    \item Update coordinates for existing locations
+    \item Retrieve donor locations for map visualization
+    \item Support for multiple geocoding providers (Google Maps, Locationiq)
+\end{itemize}
+
+\subsubsection{Google Maps Static API}
+The system uses Google Maps Static API to generate map images with markers:
+\begin{itemize}
+    \item Display donor locations as markers on a static map
+    \item Show circles representing search radius
+    \item No interactive map needed (reduces API costs)
+    \item Configured via \texttt{VITE\_GOOGLE\_MAPS\_API\_KEY} environment variable
+\end{itemize}
+
+\subsubsection{Google Maps Geocoding API}
+Converts addresses to coordinates:
+\begin{itemize}
+    \item Input: City, Area, Country (default: Bangladesh)
+    \item Output: Latitude, Longitude, Formatted Address
+    \item Automatic geocoding during donor registration/profile updates
+    \item Fallback support to alternative provider if enabled
+    \item Configured via \texttt{GEOCODING\_API\_KEY} and \texttt{GEOCODING\_PROVIDER}
+\end{itemize}
+
+\subsubsection{Frontend \& Backend Interaction}
+\begin{enumerate}
+    \item User enters city and area in registration/profile form
+    \item Backend geocodes location using Google Maps Geocoding API
+    \item Coordinates stored in LOCATION table with DECIMAL(10,8) and DECIMAL(11,8)
+    \item Frontend retrieves donor locations for map display
+    \item Google Maps Static API URL generated with markers
+    \item Static map image displayed showing donor locations
+\end{enumerate}
+
+\subsubsection{SQL Queries}
+
+\textbf{Store geocoded location:}
+\begin{lstlisting}[caption={Insert location with coordinates}]
+INSERT INTO LOCATION (city, area, latitude, longitude) 
+VALUES (?, ?, ?, ?)
+-- latitude: DECIMAL(10, 8), longitude: DECIMAL(11, 8)
+\end{lstlisting}
+
+\textbf{Retrieve donor locations for map:}
+\begin{lstlisting}[caption={Get all geocoded locations}]
+SELECT latitude, longitude 
+FROM LOCATION 
+WHERE latitude IS NOT NULL AND longitude IS NOT NULL
+\end{lstlisting}
+
+\textbf{Update coordinates for existing location:}
+\begin{lstlisting}[caption={Update geocoded coordinates}]
+UPDATE LOCATION 
+SET latitude = ?, longitude = ? 
+WHERE location_id = ?
+\end{lstlisting}
+
+\textbf{Find locations needing geocoding:}
+\begin{lstlisting}[caption={Locations without coordinates}]
+SELECT location_id, city, area 
+FROM LOCATION 
+WHERE latitude IS NULL OR longitude IS NULL
+\end{lstlisting}
+
+\textbf{Update coordinates only if not set:}
+\begin{lstlisting}[caption={Conditional coordinate update}]
+UPDATE LOCATION 
+SET latitude = ?, longitude = ? 
+WHERE location_id = ? 
+AND (latitude IS NULL OR longitude IS NULL)
+\end{lstlisting}
+
+\newpage
+
+\subsection{Feature 7: Blood Group Compatibility}
+
+\subsubsection{Description}
+Automatic blood group compatibility checking:
+\begin{itemize}
+    \item Pre-populated BLOOD\_COMPATIBILITY table with all valid combinations
+    \item Universal donor (O-) can donate to all blood groups
+    \item Universal recipient (AB+) can receive from all blood groups
+    \item Automatic filtering of compatible donors for emergency requests
+    \item Support for both positive and negative Rh factors
+\end{itemize}
+
+\subsubsection{Compatibility Rules}
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Donor Blood Group} & \textbf{Can Donate To} \\ \hline
+O- & All blood groups (universal donor) \\ \hline
+O+ & A+, B+, AB+, O+ \\ \hline
+A- & A+, A-, AB+, AB- \\ \hline
+A+ & A+, AB+ \\ \hline
+B- & B+, B-, AB+, AB- \\ \hline
+B+ & B+, AB+ \\ \hline
+AB- & AB+, AB- \\ \hline
+AB+ & AB+ only \\ \hline
+\end{tabular}
+\caption{Blood Type Compatibility Chart}
+\end{table}
+
+\subsubsection{Frontend \& Backend Interaction}
+\begin{enumerate}
+    \item Emergency request specifies required blood group
+    \item Backend queries BLOOD\_COMPATIBILITY for compatible donor blood groups
+    \item System searches for donors with compatible blood groups
+    \item Only compatible donors shown in results
+    \item Admin selects from compatible donors for matching
+\end{enumerate}
+
+\subsubsection{SQL Queries}
+
+\textbf{Get compatible donor blood groups for receiver:}
+\begin{lstlisting}[caption={Find compatible blood groups}]
+SELECT DISTINCT donor_bg 
+FROM BLOOD_COMPATIBILITY 
+WHERE receiver_bg = ?
+\end{lstlisting}
+
+\textbf{Insert compatibility rule:}
+\begin{lstlisting}[caption={Add blood compatibility}]
+INSERT INTO BLOOD_COMPATIBILITY (donor_bg, receiver_bg) 
+VALUES (?, ?)
+\end{lstlisting}
+
+\textbf{Example: Get all compatible donors for A+ receiver:}
+\begin{lstlisting}[caption={Compatible donors for A+}]
+-- First get compatible blood group IDs
+SELECT DISTINCT donor_bg 
+FROM BLOOD_COMPATIBILITY 
+WHERE receiver_bg = 1  -- bg_id for A+
+
+-- Results: O-, O+, A-, A+ (bg_ids: 8, 7, 2, 1)
+
+-- Then search donors with those blood groups
+SELECT d.*, bg.bg_name, bg.rh_factor
+FROM DONOR d
+INNER JOIN BLOOD_GROUP bg ON d.blood_group = bg.bg_id
+WHERE d.blood_group IN (1, 2, 7, 8)
+AND d.is_active = TRUE
+AND d.availability = TRUE
+\end{lstlisting}
+
+\newpage
+
+\section{Database Schema}
+
+\subsection{Entity-Relationship Design}
+The database follows a normalized Entity-Relationship Design (ERD) with the following tables:
+
+\subsubsection{Table: LOCATION}
+Stores location information for donors and emergency requests.
+
+\begin{lstlisting}[caption={LOCATION table structure}]
+CREATE TABLE LOCATION (
+    location_id INT PRIMARY KEY AUTO_INCREMENT,
+    city VARCHAR(100) NOT NULL,
+    area VARCHAR(100) NOT NULL,
+    latitude DECIMAL(10, 8),    -- Precision for geocoding
+    longitude DECIMAL(11, 8)    -- Range: -180 to 180
+);
+\end{lstlisting}
+
+\textbf{Notes:}
+\begin{itemize}
+    \item DECIMAL(10, 8) for latitude: range -90.00000000 to 90.00000000
+    \item DECIMAL(11, 8) for longitude: range -180.00000000 to 180.00000000
+    \item Coordinates nullable (geocoded after creation if API available)
+\end{itemize}
+
+\subsubsection{Table: BLOOD\_GROUP}
+Stores blood group types and Rh factors.
+
+\begin{lstlisting}[caption={BLOOD\_GROUP table structure}]
+CREATE TABLE BLOOD_GROUP (
+    bg_id INT PRIMARY KEY AUTO_INCREMENT,
+    bg_name VARCHAR(10) NOT NULL,
+    rh_factor CHAR(1) NOT NULL CHECK (rh_factor IN ('+', '-'))
+);
+
+-- Pre-populated data: A+, A-, B+, B-, AB+, AB-, O+, O-
+\end{lstlisting}
+
+\subsubsection{Table: DONOR}
+Stores donor information with foreign keys to LOCATION and BLOOD\_GROUP.
+
+\begin{lstlisting}[caption={DONOR table structure}]
+CREATE TABLE DONOR (
+    donor_id INT PRIMARY KEY AUTO_INCREMENT,
+    full_name VARCHAR(100) NOT NULL,
+    age INT NOT NULL CHECK (age >= 18),
+    gender VARCHAR(10) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    blood_group INT NOT NULL,
+    availability BOOLEAN DEFAULT TRUE,
+    last_donate DATE,
+    is_active BOOLEAN DEFAULT TRUE,
+    location_id INT,
+    FOREIGN KEY (blood_group) 
+        REFERENCES BLOOD_GROUP(bg_id) 
+        ON DELETE RESTRICT ON UPDATE CASCADE,
+    FOREIGN KEY (location_id) 
+        REFERENCES LOCATION(location_id) 
+        ON DELETE SET NULL ON UPDATE CASCADE
+);
+\end{lstlisting}
+
+\subsubsection{Table: CONTACT\_NUMBER}
+Stores multiple contact numbers per donor (1:N relationship).
+
+\begin{lstlisting}[caption={CONTACT\_NUMBER table structure}]
+CREATE TABLE CONTACT_NUMBER (
+    contact_id INT PRIMARY KEY AUTO_INCREMENT,
+    donor_id INT NOT NULL,
+    phone_number VARCHAR(20) NOT NULL,
+    FOREIGN KEY (donor_id) 
+        REFERENCES DONOR(donor_id) 
+        ON DELETE CASCADE ON UPDATE CASCADE
+);
+\end{lstlisting}
+
+\subsubsection{Table: BLOOD\_COMPATIBILITY}
+Stores blood type compatibility rules.
+
+\begin{lstlisting}[caption={BLOOD\_COMPATIBILITY table structure}]
+CREATE TABLE BLOOD_COMPATIBILITY (
+    comp_id INT PRIMARY KEY AUTO_INCREMENT,
+    donor_bg INT NOT NULL,
+    receiver_bg INT NOT NULL,
+    FOREIGN KEY (donor_bg) 
+        REFERENCES BLOOD_GROUP(bg_id) 
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (receiver_bg) 
+        REFERENCES BLOOD_GROUP(bg_id) 
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    UNIQUE KEY unique_compatibility (donor_bg, receiver_bg)
+);
+
+-- Pre-populated with 36 compatibility rules
+\end{lstlisting}
+
+\subsubsection{Table: EMERGENCY\_REQUEST}
+Stores emergency blood requests with admin approval workflow.
+
+\begin{lstlisting}[caption={EMERGENCY\_REQUEST table structure}]
+CREATE TABLE EMERGENCY_REQUEST (
+    request_id INT PRIMARY KEY AUTO_INCREMENT,
+    patient_name VARCHAR(100),
+    blood_group INT NOT NULL,
+    hospital_name VARCHAR(200) NOT NULL,
+    units_required DECIMAL(4,1) DEFAULT 1.0,
+    urgency ENUM('critical', 'high', 'medium') DEFAULT 'high',
+    required_by DATETIME,
+    request_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    location_id INT NOT NULL,
+    contact_number VARCHAR(20) NOT NULL,
+    notes TEXT,
+    status ENUM('pending', 'approved', 'rejected', 'completed') 
+        DEFAULT 'pending',
+    admin_id INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP 
+        ON UPDATE CURRENT_TIMESTAMP,
+    approved_at DATETIME,
+    rejection_reason TEXT,
+    FOREIGN KEY (blood_group) 
+        REFERENCES BLOOD_GROUP(bg_id) 
+        ON DELETE RESTRICT ON UPDATE CASCADE,
+    FOREIGN KEY (location_id) 
+        REFERENCES LOCATION(location_id) 
+        ON DELETE RESTRICT ON UPDATE CASCADE
+);
+\end{lstlisting}
+
+\subsubsection{Table: EMERGENCY\_REQUEST\_MATCHED\_DONORS}
+Stores donors matched to emergency requests after approval.
+
+\begin{lstlisting}[caption={EMERGENCY\_REQUEST\_MATCHED\_DONORS table structure}]
+CREATE TABLE EMERGENCY_REQUEST_MATCHED_DONORS (
+    match_id INT PRIMARY KEY AUTO_INCREMENT,
+    request_id INT NOT NULL,
+    donor_id INT NOT NULL,
+    matched_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (request_id) 
+        REFERENCES EMERGENCY_REQUEST(request_id) 
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (donor_id) 
+        REFERENCES DONOR(donor_id) 
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    UNIQUE KEY unique_request_donor (request_id, donor_id)
+);
+\end{lstlisting}
+
+\subsubsection{Table: OTP}
+Stores OTP codes for donor verification.
+
+\begin{lstlisting}[caption={OTP table structure}]
+CREATE TABLE OTP (
+    otp_id INT PRIMARY KEY AUTO_INCREMENT,
+    donor_id INT NOT NULL,
+    otp_code VARCHAR(10) NOT NULL,
+    expiry_time DATETIME NOT NULL,
+    is_verified BOOLEAN DEFAULT FALSE,
+    FOREIGN KEY (donor_id) 
+        REFERENCES DONOR(donor_id) 
+        ON DELETE CASCADE ON UPDATE CASCADE
+);
+\end{lstlisting}
+
+\subsection{Database Indexes}
+
+Strategic indexes for query optimization:
+
+\begin{lstlisting}[caption={Database indexes for performance}]
+-- Donor table indexes
+CREATE INDEX idx_donor_blood_group ON DONOR(blood_group);
+CREATE INDEX idx_donor_location ON DONOR(location_id);
+CREATE INDEX idx_donor_availability ON DONOR(availability);
+CREATE INDEX idx_donor_is_active ON DONOR(is_active);
+
+-- Contact number index
+CREATE INDEX idx_contact_donor ON CONTACT_NUMBER(donor_id);
+
+-- Emergency request indexes
+CREATE INDEX idx_emergency_blood_group 
+    ON EMERGENCY_REQUEST(blood_group);
+CREATE INDEX idx_emergency_location 
+    ON EMERGENCY_REQUEST(location_id);
+CREATE INDEX idx_emergency_status ON EMERGENCY_REQUEST(status);
+CREATE INDEX idx_emergency_urgency ON EMERGENCY_REQUEST(urgency);
+CREATE INDEX idx_emergency_created_at 
+    ON EMERGENCY_REQUEST(created_at);
+CREATE INDEX idx_emergency_required_by 
+    ON EMERGENCY_REQUEST(required_by);
+
+-- Matched donors indexes
+CREATE INDEX idx_matched_request 
+    ON EMERGENCY_REQUEST_MATCHED_DONORS(request_id);
+CREATE INDEX idx_matched_donor 
+    ON EMERGENCY_REQUEST_MATCHED_DONORS(donor_id);
+
+-- Location coordinates index
+CREATE INDEX idx_location_coordinates 
+    ON LOCATION(latitude, longitude);
+
+-- OTP indexes
+CREATE INDEX idx_otp_donor ON OTP(donor_id);
+CREATE INDEX idx_otp_expiry ON OTP(expiry_time);
+\end{lstlisting}
+
+\textbf{Index Purpose:}
+\begin{itemize}
+    \item \textbf{idx\_donor\_blood\_group:} Fast donor filtering by blood type
+    \item \textbf{idx\_donor\_availability:} Quick available donor searches
+    \item \textbf{idx\_emergency\_status:} Efficient request status filtering
+    \item \textbf{idx\_emergency\_urgency:} Priority-based request sorting
+    \item \textbf{idx\_location\_coordinates:} Geospatial queries on coordinates
+    \item \textbf{idx\_matched\_request/donor:} Fast lookup of matched donors
+\end{itemize}
+
+\newpage
+
+\section{Technology Implementation Details}
+
+\subsection{Google Maps Integration}
+
+\subsubsection{Google Maps Static API}
+Used for visualizing donor locations on static map images:
+\begin{itemize}
+    \item \textbf{URL Format:} \texttt{https://maps.googleapis.com/maps/api/staticmap}
+    \item \textbf{Parameters:} center, zoom, size, markers, circle
+    \item \textbf{Use Case:} Display donor locations without interactive map
+    \item \textbf{Configuration:} \texttt{VITE\_GOOGLE\_MAPS\_API\_KEY} (frontend)
+    \item \textbf{Advantages:} Lower API costs, faster loading, simpler implementation
+\end{itemize}
+
+\subsubsection{Google Maps Geocoding API}
+Converts addresses to geographic coordinates:
+\begin{itemize}
+    \item \textbf{Endpoint:} \texttt{https://maps.googleapis.com/maps/api/geocode/json}
+    \item \textbf{Input:} City, Area, Country (e.g., "Mirpur, Dhaka, Bangladesh")
+    \item \textbf{Output:} Latitude, Longitude, Formatted Address
+    \item \textbf{Configuration:} \texttt{GEOCODING\_API\_KEY} (backend)
+    \item \textbf{Features:} Region biasing (Bangladesh), error handling, fallback support
+\end{itemize}
+
+\subsection{Environment Variables}
+
+\begin{lstlisting}[caption={Required environment variables},language=bash]
+# Database Configuration
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=your_password
+DB_NAME=blood_donor_management
+
+# JWT Authentication
+JWT_SECRET=your_jwt_secret
+
+# Email Service (Resend)
+RESEND_API_KEY=your_resend_api_key
+RESEND_FROM_EMAIL=noreply@yourdomain.com
+
+# Google Maps APIs
+VITE_GOOGLE_MAPS_API_KEY=your_api_key_for_static_maps
+GEOCODING_API_KEY=your_api_key_for_geocoding
+GEOCODING_PROVIDER=google
+
+# Optional
+ADMIN_EMAIL=admin@example.com
+ENABLE_GEOCODING_FALLBACK=false
+\end{lstlisting}
+
+\subsection{Authentication System}
+
+\subsubsection{OTP Generation and Verification}
+\begin{itemize}
+    \item \textbf{OTP Length:} 6 digits
+    \item \textbf{Expiration:} 10 minutes
+    \item \textbf{Delivery:} Email via Resend API
+    \item \textbf{Storage:} In-memory (production should use Redis)
+\end{itemize}
+
+\subsubsection{JWT Token System}
+\begin{itemize}
+    \item \textbf{Algorithm:} HS256
+    \item \textbf{Payload:} Donor ID, Email
+    \item \textbf{Storage:} Frontend localStorage
+    \item \textbf{Validation:} Every authenticated request
+\end{itemize}
+
+\subsection{Deployment Architecture}
+
+\begin{itemize}
+    \item \textbf{Frontend:} Deployed on Vercel
+    \item \textbf{Backend:} Node.js server (can be deployed on Vercel, Heroku, or VPS)
+    \item \textbf{Database:} PostgreSQL (or MySQL compatible)
+    \item \textbf{CDN:} Static assets via Vercel CDN
+    \item \textbf{SSL:} Automatic HTTPS via Vercel
+\end{itemize}
+
+\newpage
+
+\section{Conclusion}
+
+\subsection{Summary}
+The Blood Donor Management System successfully provides a comprehensive solution for managing blood donors and emergency requests. Key achievements include:
+
+\begin{itemize}
+    \item \textbf{Secure Authentication:} OTP-based verification ensures legitimate donors
+    \item \textbf{Efficient Search:} Blood group compatibility and location-based filtering
+    \item \textbf{Admin Workflow:} Comprehensive management tools for administrators
+    \item \textbf{Location Services:} Google Maps integration for geocoding and visualization
+    \item \textbf{Database Design:} Normalized schema with proper constraints and indexes
+    \item \textbf{Modern Stack:} React + TypeScript + Node.js for maintainable code
+\end{itemize}
+
+\subsection{System Benefits}
+
+\begin{enumerate}
+    \item \textbf{For Donors:}
+    \begin{itemize}
+        \item Easy registration and profile management
+        \item Control over availability status
+        \item Secure authentication
+    \end{itemize}
+    
+    \item \textbf{For Blood Recipients:}
+    \begin{itemize}
+        \item Quick donor search by blood group and location
+        \item Emergency request submission
+        \item Compatible donor matching
+    \end{itemize}
+    
+    \item \textbf{For Administrators:}
+    \begin{itemize}
+        \item Complete donor management
+        \item Emergency request approval workflow
+        \item Statistics and reporting
+        \item Geocoding tools
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Future Enhancements}
+
+\begin{enumerate}
+    \item \textbf{Real-time Notifications:}
+    \begin{itemize}
+        \item SMS notifications for emergency requests
+        \item Push notifications via Firebase
+        \item Email alerts for matched donors
+    \end{itemize}
+    
+    \item \textbf{Enhanced Location Services:}
+    \begin{itemize}
+        \item Distance calculation between donor and hospital
+        \item Route optimization for multiple donors
+        \item Interactive Google Maps integration
+    \end{itemize}
+    
+    \item \textbf{Advanced Features:}
+    \begin{itemize}
+        \item Donation history tracking
+        \item Reward system for frequent donors
+        \item Blood bank inventory management
+        \item Mobile application (React Native)
+    \end{itemize}
+    
+    \item \textbf{Scalability Improvements:}
+    \begin{itemize}
+        \item Redis for session management
+        \item Elasticsearch for advanced search
+        \item WebSocket for real-time updates
+        \item Microservices architecture
+    \end{itemize}
+    
+    \item \textbf{Analytics:}
+    \begin{itemize}
+        \item Donation trends and patterns
+        \item Blood group demand forecasting
+        \item Donor retention analysis
+        \item Geographic heat maps
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Technical Recommendations}
+
+\begin{itemize}
+    \item \textbf{Production Deployment:} Use Redis for session storage instead of in-memory
+    \item \textbf{Database Optimization:} Regular index analysis and query optimization
+    \item \textbf{API Security:} Rate limiting and API key rotation
+    \item \textbf{Monitoring:} Implement logging and error tracking (e.g., Sentry)
+    \item \textbf{Backup:} Automated database backups with point-in-time recovery
+    \item \textbf{Testing:} Comprehensive unit and integration tests
+\end{itemize}
+
+\subsection{Conclusion Statement}
+
+The Blood Donor Management System demonstrates a well-architected solution addressing real-world needs in healthcare. By leveraging modern web technologies, proper database design, and third-party services like Google Maps and Resend, the system provides a reliable, scalable platform for blood donation management. The comprehensive SQL query documentation and structured database schema ensure maintainability and facilitate future enhancements.
+
+\vfill
+
+\begin{center}
+\textbf{Project Repository:} \\
+\url{https://github.com/Joydip-007/Blood-Donor-Management}
+
+\vspace{0.5cm}
+
+\textbf{Live Application:} \\
+\url{https://blood-donor-management.vercel.app}
+\end{center}
+
+\end{document}

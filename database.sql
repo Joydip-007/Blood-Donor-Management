@@ -83,20 +83,48 @@ CREATE TABLE BLOOD_COMPATIBILITY (
 
 -- =============================================
 -- Table: EMERGENCY_REQUEST
--- Description: Stores emergency blood requests from hospitals
+-- Description: Stores emergency blood requests from hospitals with admin approval workflow
 -- Relationships:
 --   - References BLOOD_GROUP for blood_group field
 --   - References LOCATION for location_id (FK)
 -- =============================================
 CREATE TABLE EMERGENCY_REQUEST (
     request_id INT PRIMARY KEY AUTO_INCREMENT,
+    patient_name VARCHAR(100),
     blood_group INT NOT NULL,
     hospital_name VARCHAR(200) NOT NULL,
+    units_required DECIMAL(4,1) DEFAULT 1.0,
+    urgency ENUM('critical', 'high', 'medium') DEFAULT 'high',
+    required_by DATETIME,
     request_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     location_id INT NOT NULL,
     contact_number VARCHAR(20) NOT NULL,
+    notes TEXT,
+    status ENUM('pending', 'approved', 'rejected', 'completed') DEFAULT 'pending',
+    admin_id INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    approved_at DATETIME,
+    rejection_reason TEXT,
     FOREIGN KEY (blood_group) REFERENCES BLOOD_GROUP(bg_id) ON DELETE RESTRICT ON UPDATE CASCADE,
     FOREIGN KEY (location_id) REFERENCES LOCATION(location_id) ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+-- =============================================
+-- Table: EMERGENCY_REQUEST_MATCHED_DONORS
+-- Description: Stores donors matched to emergency requests after admin approval
+-- Relationships:
+--   - References EMERGENCY_REQUEST for request_id (FK)
+--   - References DONOR for donor_id (FK)
+-- =============================================
+CREATE TABLE EMERGENCY_REQUEST_MATCHED_DONORS (
+    match_id INT PRIMARY KEY AUTO_INCREMENT,
+    request_id INT NOT NULL,
+    donor_id INT NOT NULL,
+    matched_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (request_id) REFERENCES EMERGENCY_REQUEST(request_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (donor_id) REFERENCES DONOR(donor_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    UNIQUE KEY unique_request_donor (request_id, donor_id)
 );
 
 -- =============================================
@@ -161,5 +189,12 @@ CREATE INDEX idx_donor_is_active ON DONOR(is_active);
 CREATE INDEX idx_contact_donor ON CONTACT_NUMBER(donor_id);
 CREATE INDEX idx_emergency_blood_group ON EMERGENCY_REQUEST(blood_group);
 CREATE INDEX idx_emergency_location ON EMERGENCY_REQUEST(location_id);
+CREATE INDEX idx_emergency_status ON EMERGENCY_REQUEST(status);
+CREATE INDEX idx_emergency_urgency ON EMERGENCY_REQUEST(urgency);
+CREATE INDEX idx_emergency_created_at ON EMERGENCY_REQUEST(created_at);
+CREATE INDEX idx_emergency_required_by ON EMERGENCY_REQUEST(required_by);
+CREATE INDEX idx_matched_request ON EMERGENCY_REQUEST_MATCHED_DONORS(request_id);
+CREATE INDEX idx_matched_donor ON EMERGENCY_REQUEST_MATCHED_DONORS(donor_id);
+CREATE INDEX idx_location_coordinates ON LOCATION(latitude, longitude);
 CREATE INDEX idx_otp_donor ON OTP(donor_id);
 CREATE INDEX idx_otp_expiry ON OTP(expiry_time);
