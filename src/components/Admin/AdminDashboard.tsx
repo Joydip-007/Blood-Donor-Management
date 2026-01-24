@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Users, UserPlus, BarChart, Shield, Edit, Settings, Activity, RefreshCcw, Download, CheckCircle } from 'lucide-react';
+import { Users, UserPlus, BarChart, Shield, Edit, Settings, Activity, RefreshCcw, Download, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_BASE_URL } from '../../utils/api';
 
 interface Props {
-  onNavigate: (view: 'add' | 'list' | 'edit' | 'stats' | 'settings' | 'inactive') => void;
+  onNavigate: (view: 'add' | 'list' | 'edit' | 'stats' | 'settings' | 'inactive' | 'emergency-requests') => void;
 }
 
 export function AdminDashboard({ onNavigate }: Props) {
@@ -13,7 +13,8 @@ export function AdminDashboard({ onNavigate }: Props) {
     total: 0,
     available: 0,
     unavailable: 0,
-    inactive: 0
+    inactive: 0,
+    pendingRequests: 0
   });
   const [loading, setLoading] = useState(true);
 
@@ -24,20 +25,36 @@ export function AdminDashboard({ onNavigate }: Props) {
   const fetchStats = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/donors/all`, {
+      // Fetch donor stats
+      const donorResponse = await fetch(`${API_BASE_URL}/admin/donors/all`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        const donors = data.donors || [];
+      if (donorResponse.ok) {
+        const donorData = await donorResponse.json();
+        const donors = donorData.donors || [];
+        
+        // Fetch emergency requests stats
+        const requestsResponse = await fetch(`${API_BASE_URL}/admin/requests/pending`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        let pendingCount = 0;
+        if (requestsResponse.ok) {
+          const requestsData = await requestsResponse.json();
+          pendingCount = requestsData.count || 0;
+        }
+
         setStats({
           total: donors.filter((d: any) => !d.isDeleted).length,
           available: donors.filter((d: any) => !d.isDeleted && d.isAvailable).length,
           unavailable: donors.filter((d: any) => !d.isDeleted && !d.isAvailable).length,
-          inactive: donors.filter((d: any) => d.isDeleted).length
+          inactive: donors.filter((d: any) => d.isDeleted).length,
+          pendingRequests: pendingCount
         });
       }
     } catch (error) {
@@ -114,6 +131,27 @@ export function AdminDashboard({ onNavigate }: Props) {
 
         {/* 6 Main Action Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
+          {/* Emergency Requests - NEW */}
+          <button
+            onClick={() => onNavigate('emergency-requests')}
+            className="bg-gradient-to-br from-red-50 to-red-100 hover:from-red-100 hover:to-red-200 rounded-lg p-6 text-left transition-all hover:shadow-lg border-2 border-red-200 relative"
+          >
+            <div className="flex items-center gap-4">
+              <div className="p-4 bg-red-600 rounded-full">
+                <AlertCircle className="text-white" size={28} />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Emergency Requests</h2>
+                <p className="text-gray-600 text-sm mt-1">Review and approve requests</p>
+              </div>
+            </div>
+            {stats.pendingRequests > 0 && (
+              <div className="absolute top-4 right-4 px-3 py-1 bg-red-600 text-white rounded-full text-sm font-bold">
+                {stats.pendingRequests}
+              </div>
+            )}
+          </button>
+
           {/* Add New Donor */}
           <button
             onClick={() => onNavigate('add')}

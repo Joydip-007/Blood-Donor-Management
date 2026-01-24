@@ -10,10 +10,11 @@ import { Statistics } from './components/Statistics';
 import { AdminDashboard } from './components/Admin/AdminDashboard';
 import { AdminAddDonor } from './components/Admin/AdminAddDonor';
 import { AdminDonorList } from './components/Admin/AdminDonorList';
+import { AdminEmergencyRequests } from './components/Admin/AdminEmergencyRequests';
 
 function AppContent() {
   const { isAuthenticated, logout, user, updateUser } = useAuth();
-  const [activeTab, setActiveTab] = useState<'register' | 'profile' | 'emergency' | 'search' | 'stats' | 'admin' | 'admin-add' | 'admin-list' | 'admin-edit' | 'admin-stats' | 'admin-settings' | 'admin-inactive'>('register');
+  const [activeTab, setActiveTab] = useState<'register' | 'profile' | 'emergency' | 'search' | 'stats' | 'admin' | 'admin-add' | 'admin-list' | 'admin-edit' | 'admin-stats' | 'admin-settings' | 'admin-inactive' | 'admin-emergency-requests'>('register');
   const [hasProfile, setHasProfile] = useState(false);
 
   // Not authenticated - show login
@@ -169,6 +170,37 @@ function AppContent() {
       );
     }
 
+    if (activeTab === 'admin-emergency-requests') {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50">
+          <header className="bg-red-600 text-white shadow-lg sticky top-0 z-50">
+            <div className="container mx-auto px-4 py-4 md:py-5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+                  <div className="p-2 bg-white rounded-lg flex-shrink-0">
+                    <Droplet className="text-red-600" size={28} />
+                  </div>
+                  <div className="min-w-0">
+                    <h1 className="text-lg md:text-2xl font-bold truncate">Blood Donor Management System</h1>
+                    <p className="text-red-100 text-xs md:text-sm">Admin Panel - Emergency Requests</p>
+                  </div>
+                </div>
+                <button
+                  onClick={logout}
+                  className="px-4 md:px-6 py-2 md:py-3 bg-red-700 hover:bg-red-800 rounded-lg transition-colors text-sm md:text-base font-medium whitespace-nowrap min-h-[44px]"
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+          </header>
+          <main className="container mx-auto px-4 py-6 md:py-8">
+            <AdminEmergencyRequests onBack={() => setActiveTab('admin')} />
+          </main>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50">
         <header className="bg-red-600 text-white shadow-lg sticky top-0 z-50">
@@ -206,7 +238,8 @@ function AppContent() {
               'edit': 'admin-edit',
               'stats': 'admin-stats',
               'settings': 'admin-settings',
-              'inactive': 'admin-inactive'
+              'inactive': 'admin-inactive',
+              'emergency-requests': 'admin-emergency-requests'
             };
             setActiveTab(viewMap[view] || 'admin');
           }} />
