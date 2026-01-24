@@ -109,6 +109,7 @@ export function EmergencyRequest() {
       return;
     }
 
+    setError('');
     try {
       const cleanedPhone = cleanPhoneNumber(contactNumber);
       const response = await fetch(`${API_BASE_URL}/requests/${requestId}`, {
@@ -120,13 +121,14 @@ export function EmergencyRequest() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete request');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete request');
       }
 
       // Refresh the requests list
       fetchMyRequests(contactNumber);
     } catch (err: any) {
-      alert('Error deleting request: ' + err.message);
+      setError('Error deleting request: ' + err.message);
     }
   };
 

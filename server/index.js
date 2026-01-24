@@ -274,17 +274,19 @@ function isValidBangladeshPhone(phone) {
  */
 function cleanPhoneNumber(phone) {
   if (!phone) return '';
-  return phone.replace(/[\s-]/g, '');
+  // Remove all non-digit characters (spaces, dashes, parentheses, etc.)
+  return phone.replace(/\D/g, '');
 }
 
 /**
  * Helper function to safely build SQL IN clause with placeholders
  * @param {Array} ids - Array of IDs to include in IN clause
  * @returns {string} - Placeholder string like "?, ?, ?"
+ * @throws {Error} - If ids array is empty
  */
 function buildInClausePlaceholders(ids) {
   if (!Array.isArray(ids) || ids.length === 0) {
-    return '';
+    throw new Error('Cannot build IN clause for empty array');
   }
   return ids.map(() => '?').join(',');
 }
@@ -2293,8 +2295,8 @@ app.get('/api/requests/my-requests/:contactNumber', async (req, res) => {
   try {
     const { contactNumber } = req.params;
 
-    // Clean phone number (remove spaces, dashes, etc.)
-    const cleanedPhone = contactNumber.replace(/[\s\-\(\)]/g, '');
+    // Clean phone number
+    const cleanedPhone = cleanPhoneNumber(contactNumber);
 
     const [requests] = await pool.execute(
       `SELECT er.*, l.city, l.area, bg.bg_name, bg.rh_factor
@@ -2395,7 +2397,7 @@ app.delete('/api/requests/:requestId', async (req, res) => {
     }
 
     // Clean phone number
-    const cleanedPhone = contactNumber.replace(/[\s\-\(\)]/g, '');
+    const cleanedPhone = cleanPhoneNumber(contactNumber);
 
     // Verify the request belongs to this contact number
     const [requests] = await pool.execute(
