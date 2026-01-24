@@ -277,6 +277,18 @@ function cleanPhoneNumber(phone) {
   return phone.replace(/[\s-]/g, '');
 }
 
+/**
+ * Helper function to safely build SQL IN clause with placeholders
+ * @param {Array} ids - Array of IDs to include in IN clause
+ * @returns {string} - Placeholder string like "?, ?, ?"
+ */
+function buildInClausePlaceholders(ids) {
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return '';
+  }
+  return ids.map(() => '?').join(',');
+}
+
 // Send OTP via email using Resend
 async function sendOTPEmail(email, otp) {
   if (!resend) {
@@ -1176,8 +1188,9 @@ app.post('/api/donors/search', async (req, res) => {
     let contactsByDonor = {};
     
     if (donorIds.length > 0) {
+      const placeholders = buildInClausePlaceholders(donorIds);
       const [contacts] = await pool.execute(
-        `SELECT donor_id, phone_number FROM CONTACT_NUMBER WHERE donor_id IN (${donorIds.map(() => '?').join(',')})`,
+        `SELECT donor_id, phone_number FROM CONTACT_NUMBER WHERE donor_id IN (${placeholders})`,
         donorIds
       );
       contacts.forEach(c => {
@@ -1527,8 +1540,9 @@ app.get('/api/admin/donors/all', isAdmin, async (req, res) => {
     let contactsByDonor = {};
     
     if (donorIds.length > 0) {
+      const placeholders = buildInClausePlaceholders(donorIds);
       const [contacts] = await pool.execute(
-        `SELECT donor_id, phone_number FROM CONTACT_NUMBER WHERE donor_id IN (${donorIds.map(() => '?').join(',')})`,
+        `SELECT donor_id, phone_number FROM CONTACT_NUMBER WHERE donor_id IN (${placeholders})`,
         donorIds
       );
       contacts.forEach(c => {
@@ -2085,8 +2099,9 @@ app.put('/api/admin/requests/:requestId/approve', isAdmin, async (req, res) => {
       let contactsByDonor = {};
       
       if (donorIds.length > 0) {
+        const placeholders = buildInClausePlaceholders(donorIds);
         const [contacts] = await pool.execute(
-          `SELECT donor_id, phone_number FROM CONTACT_NUMBER WHERE donor_id IN (${donorIds.map(() => '?').join(',')})`,
+          `SELECT donor_id, phone_number FROM CONTACT_NUMBER WHERE donor_id IN (${placeholders})`,
           donorIds
         );
         contacts.forEach(c => {
@@ -2125,11 +2140,14 @@ app.put('/api/admin/requests/:requestId/approve', isAdmin, async (req, res) => {
 
     // Save matched donors to database
     if (matchedDonors.length > 0) {
-      const values = matchedDonors.map(d => [requestId, d.id]);
-      await pool.query(
-        `INSERT INTO EMERGENCY_REQUEST_MATCHED_DONORS (request_id, donor_id) VALUES ?`,
-        [values]
+      // Insert each matched donor using parameterized queries
+      const insertPromises = matchedDonors.map(d => 
+        pool.execute(
+          `INSERT INTO EMERGENCY_REQUEST_MATCHED_DONORS (request_id, donor_id) VALUES (?, ?)`,
+          [requestId, d.id]
+        )
       );
+      await Promise.all(insertPromises);
     }
 
     res.json({ 
@@ -2237,8 +2255,9 @@ app.get('/api/requests/:requestId/status', async (req, res) => {
       let contactsByDonor = {};
       
       if (donorIds.length > 0) {
+        const placeholders = buildInClausePlaceholders(donorIds);
         const [contacts] = await pool.execute(
-          `SELECT donor_id, phone_number FROM CONTACT_NUMBER WHERE donor_id IN (${donorIds.map(() => '?').join(',')})`,
+          `SELECT donor_id, phone_number FROM CONTACT_NUMBER WHERE donor_id IN (${placeholders})`,
           donorIds
         );
         contacts.forEach(c => {
@@ -2326,8 +2345,9 @@ app.get('/api/requests/my-requests/:contactNumber', async (req, res) => {
         let contactsByDonor = {};
         
         if (donorIds.length > 0) {
+          const placeholders = buildInClausePlaceholders(donorIds);
           const [contacts] = await pool.execute(
-            `SELECT donor_id, phone_number FROM CONTACT_NUMBER WHERE donor_id IN (${donorIds.map(() => '?').join(',')})`,
+            `SELECT donor_id, phone_number FROM CONTACT_NUMBER WHERE donor_id IN (${placeholders})`,
             donorIds
           );
           contacts.forEach(c => {

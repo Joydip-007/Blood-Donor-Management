@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AlertCircle, Phone, MapPin, Droplet, Clock, User, Building, CheckCircle, Trash2, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { API_BASE_URL } from '../utils/api';
 import { BloodGroup } from '../types';
-import { validateBangladeshPhone } from '../utils/phoneUtils';
+import { validateBangladeshPhone, cleanPhoneNumber } from '../utils/phoneUtils';
 
 interface MatchedDonor {
   id: string;
@@ -75,7 +75,7 @@ export function EmergencyRequest() {
     setLoadingRequests(true);
     setError('');
     try {
-      const cleanedPhone = phone.replace(/[\s\-\(\)]/g, '');
+      const cleanedPhone = cleanPhoneNumber(phone);
       const response = await fetch(`${API_BASE_URL}/requests/my-requests/${cleanedPhone}`);
       
       if (!response.ok) {
@@ -110,12 +110,13 @@ export function EmergencyRequest() {
     }
 
     try {
+      const cleanedPhone = cleanPhoneNumber(contactNumber);
       const response = await fetch(`${API_BASE_URL}/requests/${requestId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ contactNumber: contactNumber }),
+        body: JSON.stringify({ contactNumber: cleanedPhone }),
       });
 
       if (!response.ok) {
