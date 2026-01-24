@@ -20,13 +20,14 @@ A modern web application for managing blood donors, built with React, TypeScript
 - **Backend**: Node.js, Express.js
 - **Database**: PostgreSQL
 - **Authentication**: JWT with OTP verification
-- **Maps**: Leaflet for location services
+- **Maps**: Google Maps Static API for location visualization and geocoding
 
 ## Prerequisites
 
 - Node.js 18+ 
 - PostgreSQL database
 - npm or yarn
+- Google Maps API key (for geocoding and map visualization)
 
 ## Installation
 
@@ -48,6 +49,9 @@ A modern web application for managing blood donors, built with React, TypeScript
    DATABASE_URL=your_postgresql_connection_string
    JWT_SECRET=your_jwt_secret
    VITE_API_URL=http://localhost:3000
+   VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_for_static_maps
+   GEOCODING_API_KEY=your_google_maps_api_key_for_geocoding
+   GEOCODING_PROVIDER=google
    ```
 
 4. **Set up the database**
@@ -81,6 +85,26 @@ A modern web application for managing blood donors, built with React, TypeScript
 ├── migrations/              # Database migrations
 └── database.sql             # Database schema
 ```
+
+## Google Maps API Setup
+
+This project uses Google Maps APIs for location services:
+
+1. **Create a Google Cloud Project**
+   - Go to [Google Cloud Console](https://console.cloud.google.com/)
+   - Create a new project or select an existing one
+
+2. **Enable Required APIs**
+   - Maps Static API (for displaying donor locations on maps)
+   - Geocoding API (for converting addresses to coordinates)
+
+3. **Create API Key**
+   - Go to "Credentials" → "Create Credentials" → "API Key"
+   - Restrict the key to only the enabled APIs above
+
+4. **Add API Key to Environment**
+   - Set `VITE_GOOGLE_MAPS_API_KEY` for frontend (Static Maps)
+   - Set `GEOCODING_API_KEY` for backend (Geocoding)
 
 ## Admin Features
 
