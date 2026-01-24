@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Search, MapPin, Droplet, Phone, Map as MapIcon, Filter } from 'lucide-react';
+import { MapPin, Droplet, Phone, Map as MapIcon, Filter } from 'lucide-react';
 import { API_BASE_URL } from '../utils/api';
 import { BloodGroup, Donor } from '../types';
 import { DonorMap } from './DonorMap';
 // Note: debug utility removed as viewMode is now always 'map' and doesn't need logging
 
 export function DonorSearch() {
-  const [donors, setDonors] = useState<Donor[]>([]);
+  const [allDonors, setAllDonors] = useState<Donor[]>([]); // Store all donors
   const [loading, setLoading] = useState(false);
   
   const [filters, setFilters] = useState({
@@ -18,7 +18,8 @@ export function DonorSearch() {
 
   const bloodGroups: BloodGroup[] = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
-  const searchDonors = async () => {
+  // Load all available donors on initial load
+  const loadAllDonors = async () => {
     setLoading(true);
 
     try {
@@ -29,29 +30,63 @@ export function DonorSearch() {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(filters),
+          body: JSON.stringify({
+            bloodGroup: '',
+            city: '',
+            area: '',
+            isAvailable: true, // Load only available donors by default
+          }),
         }
       );
 
       if (!response.ok) {
-        throw new Error('Failed to search donors');
+        throw new Error('Failed to load donors');
       }
 
       const data = await response.json();
-      setDonors(data.donors);
+      setAllDonors(data.donors);
     } catch (err) {
-      console.error('Search error:', err);
-      setDonors([]);
+      console.error('Load donors error:', err);
+      setAllDonors([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    searchDonors();
+    loadAllDonors();
   }, []);
 
-  const donorsWithLocation = donors.filter(d => d.latitude && d.longitude);
+  // Client-side filtering of donors
+  const filteredDonors = allDonors.filter(donor => {
+    // Pre-convert filter values to lowercase for performance
+    const cityFilter = filters.city.toLowerCase();
+    const areaFilter = filters.area.toLowerCase();
+    
+    // Filter by blood group
+    if (filters.bloodGroup && donor.bloodGroup !== filters.bloodGroup) {
+      return false;
+    }
+    
+    // Filter by city (case-insensitive partial match)
+    if (cityFilter && !donor.city.toLowerCase().includes(cityFilter)) {
+      return false;
+    }
+    
+    // Filter by area (case-insensitive partial match)
+    if (areaFilter && !donor.area.toLowerCase().includes(areaFilter)) {
+      return false;
+    }
+    
+    // Filter by availability
+    if (filters.isAvailable !== undefined && donor.isAvailable !== filters.isAvailable) {
+      return false;
+    }
+    
+    return true;
+  });
+
+  const donorsWithLocation = filteredDonors.filter(d => d.latitude && d.longitude);
 
   return (
     <div className="space-y-6 md:space-y-8">
@@ -59,7 +94,7 @@ export function DonorSearch() {
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 md:gap-6">
         <div>
           <h2 className="text-xl md:text-2xl font-semibold">Donor Map</h2>
-          <p className="text-gray-700 mt-1 text-sm md:text-base">Find available blood donors by location and blood group</p>
+          <p className="text-gray-700 mt-1 text-sm md:text-base">Browse all available blood donors - use filters to narrow your search</p>
         </div>
       </div>
 
@@ -67,7 +102,7 @@ export function DonorSearch() {
       <div className="bg-white rounded-lg shadow-md p-6 md:p-8">
         <h3 className="font-semibold text-base md:text-lg mb-4 md:mb-6 flex items-center gap-2">
           <Filter size={20} className="text-red-600" />
-          Search Filters
+          Filter Donors
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           <div>
@@ -94,7 +129,7 @@ export function DonorSearch() {
               type="text"
               value={filters.city}
               onChange={(e) => setFilters({ ...filters, city: e.target.value })}
-              placeholder="Enter city..."
+              placeholder="Filter by city..."
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-base min-h-[44px]"
             />
           </div>
@@ -107,7 +142,7 @@ export function DonorSearch() {
               type="text"
               value={filters.area}
               onChange={(e) => setFilters({ ...filters, area: e.target.value })}
-              placeholder="Enter area..."
+              placeholder="Filter by area..."
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-base min-h-[44px]"
             />
           </div>
@@ -126,15 +161,21 @@ export function DonorSearch() {
             </select>
           </div>
         </div>
-
-        <button
-          onClick={searchDonors}
-          disabled={loading}
-          className="mt-6 w-full md:w-auto px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:bg-gray-300 flex items-center justify-center gap-2 min-h-[44px] font-medium text-base"
-        >
-          <Search size={18} />
-          {loading ? 'Searching...' : 'Search Donors'}
-        </button>
+        
+        {/* Show filter status */}
+        <div className="mt-4 text-sm text-gray-600">
+          {loading ? (
+            <p className="flex items-center gap-2">
+              <span className="animate-spin">⏳</span> Loading donors...
+            </p>
+          ) : (
+            <p>
+              Showing <span className="font-semibold text-red-600">{filteredDonors.length}</span> of{' '}
+              <span className="font-semibold">{allDonors.length}</span> available donors
+              {(filters.bloodGroup || filters.city || filters.area) && ' (filtered)'}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Map View */}
@@ -203,8 +244,9 @@ export function DonorSearch() {
             <MapIcon size={48} className="text-yellow-500 mx-auto mb-4" />
             <p className="text-yellow-900 font-medium mb-2 text-base md:text-lg">No Location Data Available</p>
             <p className="text-sm md:text-base text-yellow-800">
-              None of the donors in the current search results have location coordinates.
-              Try different search criteria or encourage donors to add their location.
+              {filteredDonors.length > 0 
+                ? 'The donors matching your filters do not have location coordinates. Try adjusting your filters.'
+                : 'No donors found matching your current filters. Try adjusting your search criteria.'}
             </p>
           </div>
         )}
@@ -212,10 +254,10 @@ export function DonorSearch() {
 
       {/* Info Box */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 md:p-6">
-        <h4 className="font-semibold text-blue-900 mb-3 text-base md:text-lg">Search & Filtering Features</h4>
+        <h4 className="font-semibold text-blue-900 mb-3 text-base md:text-lg">Filtering Features</h4>
         <ul className="text-sm md:text-base text-blue-800 space-y-2">
-          <li>✓ Filter by blood group, city, area, and availability</li>
-          <li>✓ Optimized search using indexed location fields</li>
+          <li>✓ All available donors displayed automatically on page load</li>
+          <li>✓ Instant client-side filtering by blood group, city, and area</li>
           <li>✓ Real-time availability updates based on 90-day donation rule</li>
           <li>✓ Privacy-protected contact details (shown only for available donors)</li>
           <li>✓ Location-based map view for quick donor identification</li>
