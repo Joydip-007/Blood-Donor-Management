@@ -1,19 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Search, MapPin, Droplet, Phone, Filter, Map as MapIcon } from 'lucide-react';
+import { Search, MapPin, Droplet, Phone, Map as MapIcon, Filter } from 'lucide-react';
 import { API_BASE_URL } from '../utils/api';
 import { BloodGroup, Donor } from '../types';
 import { DonorMap } from './DonorMap';
-import { debug } from '../utils/debug';
 
 export function DonorSearch() {
   const [donors, setDonors] = useState<Donor[]>([]);
   const [loading, setLoading] = useState(false);
-  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
-
-  // Debug logging for viewMode changes
-  useEffect(() => {
-    debug.log('DonorSearch: viewMode changed to:', viewMode);
-  }, [viewMode]);
   
   const [filters, setFilters] = useState({
     bloodGroup: '' as BloodGroup | '',
@@ -59,44 +52,13 @@ export function DonorSearch() {
 
   const donorsWithLocation = donors.filter(d => d.latitude && d.longitude);
 
-  // Debug logging
-  debug.log('DonorSearch render:', {
-    viewMode,
-    totalDonors: donors.length,
-    donorsWithLocation: donorsWithLocation.length,
-  });
-
   return (
     <div className="space-y-6 md:space-y-8">
       {/* Header */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 md:gap-6">
         <div>
-          <h2 className="text-xl md:text-2xl font-semibold">Donor Search & Map</h2>
+          <h2 className="text-xl md:text-2xl font-semibold">Donor Map</h2>
           <p className="text-gray-700 mt-1 text-sm md:text-base">Find available blood donors by location and blood group</p>
-        </div>
-        <div className="flex gap-3 w-full lg:w-auto">
-          <button
-            onClick={() => setViewMode('list')}
-            className={`flex-1 lg:flex-none px-4 md:px-6 py-3 rounded-lg transition-colors flex items-center justify-center gap-2 min-h-[44px] font-medium ${
-              viewMode === 'list'
-                ? 'bg-red-600 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            <Filter size={18} />
-            List View
-          </button>
-          <button
-            onClick={() => setViewMode('map')}
-            className={`flex-1 lg:flex-none px-4 md:px-6 py-3 rounded-lg transition-colors flex items-center justify-center gap-2 min-h-[44px] font-medium ${
-              viewMode === 'map'
-                ? 'bg-red-600 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            <MapIcon size={18} />
-            Map View
-          </button>
         </div>
       </div>
 
@@ -174,159 +136,8 @@ export function DonorSearch() {
         </button>
       </div>
 
-      {/* Statistics */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-        <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-          <p className="text-gray-700 text-sm md:text-base font-medium">Total Found</p>
-          <p className="text-2xl md:text-3xl font-semibold mt-2">{donors.length}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-          <p className="text-gray-700 text-sm md:text-base font-medium">Available</p>
-          <p className="text-2xl md:text-3xl font-semibold mt-2 text-green-600">
-            {donors.filter(d => d.isAvailable).length}
-          </p>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-          <p className="text-gray-700 text-sm md:text-base font-medium">With Location</p>
-          <p className="text-2xl md:text-3xl font-semibold mt-2 text-blue-600">
-            {donorsWithLocation.length}
-          </p>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-          <p className="text-gray-700 text-sm md:text-base font-medium">Blood Groups</p>
-          <p className="text-2xl md:text-3xl font-semibold mt-2 text-purple-600">
-            {[...new Set(donors.map(d => d.bloodGroup))].length}
-          </p>
-        </div>
-      </div>
-
-      {/* List View */}
-      {viewMode === 'list' && (
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          {loading ? (
-            <div className="p-12 text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto"></div>
-              <p className="mt-4 text-gray-700">Searching donors...</p>
-            </div>
-          ) : donors.length === 0 ? (
-            <div className="p-12 text-center">
-              <p className="text-gray-600 text-base">No donors found matching your criteria</p>
-            </div>
-          ) : (
-            <>
-              {/* Mobile: Card Layout */}
-              <div className="block md:hidden p-4 space-y-4">
-                {donors.map((donor) => (
-                  <div key={donor.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-base mb-2">{donor.name}</h4>
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium inline-flex items-center gap-1">
-                            <Droplet size={12} />
-                            {donor.bloodGroup}
-                          </span>
-                          {donor.isAvailable ? (
-                            <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
-                              Available
-                            </span>
-                          ) : (
-                            <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">
-                              Unavailable
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-2 text-sm text-gray-700">
-                      <div className="flex items-center gap-2">
-                        <MapPin size={14} className="flex-shrink-0" />
-                        <span>{donor.area}, {donor.city}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-600">Age: {donor.age}</span>
-                      </div>
-                      {donor.isAvailable && (
-                        <a
-                          href={`tel:${donor.phone}`}
-                          className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium min-h-[44px] pt-2"
-                        >
-                          <Phone size={14} />
-                          {donor.phone}
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Desktop: Table Layout */}
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Name</th>
-                      <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Blood Group</th>
-                      <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Location</th>
-                      <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Age</th>
-                      <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Availability</th>
-                      <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Contact</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {donors.map((donor) => (
-                      <tr key={donor.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-4 text-sm font-medium">{donor.name}</td>
-                        <td className="px-4 py-4 text-sm">
-                          <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium inline-flex items-center gap-1">
-                            <Droplet size={12} />
-                            {donor.bloodGroup}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4 text-sm">
-                          <div className="flex items-center gap-1 text-gray-700">
-                            <MapPin size={14} />
-                            {donor.area}, {donor.city}
-                          </div>
-                        </td>
-                        <td className="px-4 py-4 text-sm">{donor.age}</td>
-                        <td className="px-4 py-4 text-sm">
-                          {donor.isAvailable ? (
-                            <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
-                              Available
-                            </span>
-                          ) : (
-                            <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">
-                              Unavailable
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-4 text-sm">
-                          {donor.isAvailable ? (
-                            <a
-                              href={`tel:${donor.phone}`}
-                              className="text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium"
-                            >
-                              <Phone size={14} />
-                              {donor.phone}
-                            </a>
-                          ) : (
-                            <span className="text-gray-400">Not available</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
       {/* Map View */}
-      {viewMode === 'map' && (
-        <div className="bg-white rounded-lg shadow-md p-6 md:p-8">
+      <div className="bg-white rounded-lg shadow-md p-6 md:p-8">
           <div className="mb-4 md:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <h3 className="font-semibold text-base md:text-lg flex items-center gap-2">
               <MapIcon size={20} className="text-red-600" />
@@ -397,7 +208,7 @@ export function DonorSearch() {
             </div>
           )}
         </div>
-      )}
+      </div>
 
       {/* Info Box */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 md:p-6">

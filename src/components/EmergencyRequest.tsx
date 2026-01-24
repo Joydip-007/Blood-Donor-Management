@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { AlertCircle, Phone, MapPin, Droplet, Clock, User, Building } from 'lucide-react';
+import { AlertCircle, Phone, MapPin, Droplet, Clock, User, Building, CheckCircle } from 'lucide-react';
 import { API_BASE_URL } from '../utils/api';
-import { BloodGroup, MatchedDonor } from '../types';
+import { BloodGroup } from '../types';
 import { validateBangladeshPhone } from '../utils/phoneUtils';
 
 export function EmergencyRequest() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [matchedDonors, setMatchedDonors] = useState<MatchedDonor[]>([]);
   const [requestCreated, setRequestCreated] = useState(false);
+  const [requestId, setRequestId] = useState('');
 
   const [formData, setFormData] = useState({
     patientName: '',
@@ -69,7 +69,7 @@ export function EmergencyRequest() {
       }
 
       const data = await response.json();
-      setMatchedDonors(data.matchedDonors);
+      setRequestId(data.requestId);
       setRequestCreated(true);
     } catch (err: any) {
       setError(err.message);
@@ -85,98 +85,85 @@ export function EmergencyRequest() {
         <div className="bg-green-50 border border-green-200 rounded-lg p-6 md:p-8">
           <div className="flex items-start gap-3 mb-4">
             <div className="p-3 bg-green-100 rounded-full flex-shrink-0">
-              <AlertCircle className="text-green-600" size={24} />
+              <CheckCircle className="text-green-600" size={24} />
             </div>
             <div className="flex-1">
-              <h2 className="text-lg md:text-xl font-semibold text-green-900">Request Created Successfully!</h2>
+              <h2 className="text-lg md:text-xl font-semibold text-green-900">Request Submitted Successfully!</h2>
               <p className="text-green-700 mt-1 text-sm md:text-base">
-                We found {matchedDonors.length} compatible donor{matchedDonors.length !== 1 ? 's' : ''} in your area
+                Your emergency request has been submitted for admin review
               </p>
             </div>
           </div>
         </div>
 
-        {/* Matched Donors */}
-        {matchedDonors.length > 0 ? (
-          <div className="bg-white rounded-lg shadow-md p-6 md:p-8">
-            <h3 className="text-base md:text-lg font-semibold mb-4 md:mb-6 flex items-center gap-2">
-              <User className="text-red-600" size={20} />
-              Compatible Donors in {formData.city}
-            </h3>
-            <div className="space-y-4 md:space-y-6">
-              {matchedDonors.map((donor, index) => (
-                <div key={donor.id} className="border border-gray-200 rounded-lg p-4 md:p-6 hover:shadow-md transition-shadow">
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-base md:text-lg mb-3">{donor.name}</h4>
-                      <div className="space-y-2 md:space-y-3">
-                        <div className="flex items-center gap-2 text-sm md:text-base text-gray-700">
-                          <Droplet size={16} className="text-red-600" />
-                          <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs md:text-sm font-medium">
-                            {donor.bloodGroup}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm md:text-base text-gray-700">
-                          <MapPin size={16} />
-                          {donor.area}, {donor.city}
-                        </div>
-                        <div className="flex items-center gap-2 text-sm md:text-base text-gray-700">
-                          <Phone size={16} />
-                          <a href={`tel:${donor.phone}`} className="text-blue-600 hover:underline font-medium">
-                            {donor.phone}
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex-shrink-0">
-                      <span className="px-3 py-1 bg-green-100 text-green-700 text-xs md:text-sm rounded-full font-medium">
-                        Match #{index + 1}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="mt-4 pt-4 border-t">
-                    <a
-                      href={`tel:${donor.phone}`}
-                      className="inline-block px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors min-h-[44px] font-medium text-sm md:text-base"
-                    >
-                      <Phone className="inline mr-2" size={16} />
-                      Call Donor
-                    </a>
-                  </div>
+        {/* Request Details */}
+        <div className="bg-white rounded-lg shadow-md p-6 md:p-8">
+          <h3 className="text-base md:text-lg font-semibold mb-4 md:mb-6 flex items-center gap-2">
+            <AlertCircle className="text-red-600" size={20} />
+            Request Information
+          </h3>
+          <div className="space-y-4 md:space-y-6">
+            <div className="border border-gray-200 rounded-lg p-4 md:p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-600">Request ID</p>
+                  <p className="text-lg font-semibold text-gray-900">#{requestId}</p>
                 </div>
-              ))}
+                <div>
+                  <p className="text-sm text-gray-600">Status</p>
+                  <span className="inline-block px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium mt-1">
+                    Pending Admin Approval
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Patient Name</p>
+                  <p className="text-base font-medium text-gray-900">{formData.patientName}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Blood Group Required</p>
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium mt-1">
+                    <Droplet size={14} />
+                    {formData.bloodGroup}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Hospital</p>
+                  <p className="text-base font-medium text-gray-900">{formData.hospitalName}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Location</p>
+                  <p className="text-base font-medium text-gray-900">{formData.area}, {formData.city}</p>
+                </div>
+              </div>
             </div>
           </div>
-        ) : (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 md:p-8">
-            <h3 className="text-base md:text-lg font-semibold text-yellow-900 mb-2">No Compatible Donors Found</h3>
-            <p className="text-yellow-800 text-sm md:text-base mb-3">
-              Unfortunately, we couldn't find any available compatible donors in your area at this time. 
-              Please try:
-            </p>
-            <ul className="space-y-2 text-yellow-800 text-sm md:text-base">
-              <li>• Contacting nearby blood banks directly</li>
-              <li>• Expanding your search to nearby cities</li>
-              <li>• Checking back in a few hours as donor availability updates</li>
-            </ul>
-          </div>
-        )}
+        </div>
 
         {/* Next Steps */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 md:p-8">
-          <h3 className="font-semibold text-blue-900 mb-3 text-base md:text-lg">Next Steps</h3>
+          <h3 className="font-semibold text-blue-900 mb-3 text-base md:text-lg">What Happens Next?</h3>
           <ul className="space-y-2 text-sm md:text-base text-blue-800">
-            <li>✓ Contact the matched donors directly via phone</li>
-            <li>✓ Verify donor availability before arranging donation</li>
-            <li>✓ Coordinate with the hospital for donation timing</li>
-            <li>✓ Ensure all medical screening is completed</li>
+            <li>✓ Your request is now in the admin review queue</li>
+            <li>✓ An admin will review your request and find compatible donors</li>
+            <li>✓ You will be notified once your request is approved</li>
+            <li>✓ After approval, you will receive contact details of matched donors</li>
+            <li>✓ Please keep your contact number active for updates</li>
           </ul>
+        </div>
+
+        {/* Important Notice */}
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 md:p-8">
+          <h3 className="font-semibold text-yellow-900 mb-3 text-base md:text-lg">Important Notice</h3>
+          <p className="text-sm md:text-base text-yellow-800">
+            Save your Request ID <strong>#{requestId}</strong> for future reference. 
+            You may need it to check the status of your request or for any follow-up communication.
+          </p>
         </div>
 
         <button
           onClick={() => {
             setRequestCreated(false);
-            setMatchedDonors([]);
+            setRequestId('');
             setFormData({
               patientName: '',
               bloodGroup: 'O+',

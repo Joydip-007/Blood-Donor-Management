@@ -1233,7 +1233,15 @@ app.post('/api/donors/search', async (req, res) => {
 // Create emergency request (per ERD: EMERGENCY_REQUEST table)
 app.post('/api/requests/create', async (req, res) => {
   try {
-    const { bloodGroup, city, area, hospitalName, contactPhone } = req.body;
+    const { 
+      patientName, bloodGroup, unitsRequired, hospitalName, 
+      city, area, contactName, contactPhone, urgency, requiredBy, notes 
+    } = req.body;
+
+    // Validate required fields
+    if (!patientName || !bloodGroup || !hospitalName || !city || !contactName || !contactPhone) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
 
     // Validate contact phone
     const cleanedContactPhone = cleanPhoneNumber(contactPhone);
@@ -1252,77 +1260,32 @@ app.post('/api/requests/create', async (req, res) => {
     // Get or create location
     const locationId = await getOrCreateLocation(city, area || '');
 
-    // Insert emergency request (use cleaned phone number)
+    // Insert emergency request with new fields and status='pending'
     const [result] = await pool.execute(
-      `INSERT INTO EMERGENCY_REQUEST (blood_group, hospital_name, request_date, location_id, contact_number) 
-       VALUES (?, ?, NOW(), ?, ?)`,
-      [bloodGroupId, hospitalName, locationId, cleanedContactPhone]
+      `INSERT INTO EMERGENCY_REQUEST (
+        patient_name, blood_group, hospital_name, units_required, urgency, 
+        required_by, location_id, contact_number, notes, status, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW())`,
+      [
+        patientName,
+        bloodGroupId,
+        hospitalName,
+        parseFloat(unitsRequired) || 1.0,
+        urgency || 'high',
+        requiredBy || null,
+        locationId,
+        cleanedContactPhone,
+        notes || null
+      ]
     );
 
-    // Get compatible blood groups (from BLOOD_COMPATIBILITY table per ERD)
-    const compatibleBgIds = await getCompatibleDonorBloodGroups(bloodGroupId);
-
-    // Find compatible, available donors
-    let matchedDonors = [];
-    if (compatibleBgIds.length > 0) {
-      const [donorsData] = await pool.execute(
-        `SELECT d.donor_id, d.full_name, d.blood_group, d.availability, d.last_donate, 
-                l.city, l.area, l.latitude, l.longitude, bg.bg_name, bg.rh_factor
-         FROM DONOR d
-         LEFT JOIN LOCATION l ON d.location_id = l.location_id
-         LEFT JOIN BLOOD_GROUP bg ON d.blood_group = bg.bg_id
-         WHERE d.is_active = TRUE AND d.blood_group IN (${compatibleBgIds.map(() => '?').join(',')})
-         AND LOWER(l.city) LIKE LOWER(?)`,
-        [...compatibleBgIds, `%${city}%`]
-      );
-
-      // Get contact numbers
-      const donorIds = donorsData.map(d => d.donor_id);
-      let contactsByDonor = {};
-      
-      if (donorIds.length > 0) {
-        const [contacts] = await pool.execute(
-          `SELECT donor_id, phone_number FROM CONTACT_NUMBER WHERE donor_id IN (${donorIds.map(() => '?').join(',')})`,
-          donorIds
-        );
-        contacts.forEach(c => {
-          if (!contactsByDonor[c.donor_id]) contactsByDonor[c.donor_id] = c.phone_number;
-        });
-      }
-
-      matchedDonors = donorsData
-        .filter(d => {
-          let isAvailable = d.availability;
-          if (d.last_donate) {
-            const daysSince = Math.floor((Date.now() - new Date(d.last_donate).getTime()) / (1000 * 60 * 60 * 24));
-            isAvailable = daysSince >= 90;
-          }
-          return isAvailable;
-        })
-        .map(d => ({
-          id: d.donor_id.toString(),
-          name: d.full_name,
-          bloodGroup: `${d.bg_name}${d.rh_factor}`,
-          city: d.city || '',
-          area: d.area || '',
-          phone: contactsByDonor[d.donor_id] || '',
-          latitude: d.latitude,
-          longitude: d.longitude
-        }));
-    }
-
-    const request = {
-      id: result.insertId.toString(),
-      bloodGroup,
-      hospitalName,
-      city,
-      area,
-      contactPhone: cleanedContactPhone,
-      createdAt: new Date().toISOString(),
-      status: 'active'
-    };
-
-    res.json({ success: true, request, matchedDonors });
+    // Return only confirmation - no matched donors
+    res.json({ 
+      success: true, 
+      requestId: result.insertId.toString(),
+      status: 'pending',
+      message: 'Your emergency request has been submitted for admin review'
+    });
   } catch (error) {
     console.error('Error creating request:', error);
     res.status(500).json({ error: 'Failed to create request' });
@@ -1955,6 +1918,300 @@ app.post('/api/admin/locations/geocode-all', isAdmin, async (req, res) => {
   } catch (error) {
     console.error('Error bulk geocoding locations:', error);
     res.status(500).json({ error: 'Failed to geocode locations' });
+  }
+});
+
+// ==================== ADMIN EMERGENCY REQUEST ROUTES ====================
+
+// Admin: Get all pending emergency requests
+app.get('/api/admin/requests/pending', isAdmin, async (req, res) => {
+  try {
+    const [requests] = await pool.execute(
+      `SELECT er.*, l.city, l.area, bg.bg_name, bg.rh_factor
+       FROM EMERGENCY_REQUEST er
+       LEFT JOIN LOCATION l ON er.location_id = l.location_id
+       LEFT JOIN BLOOD_GROUP bg ON er.blood_group = bg.bg_id
+       WHERE er.status = 'pending'
+       ORDER BY 
+         CASE er.urgency
+           WHEN 'critical' THEN 1
+           WHEN 'high' THEN 2
+           WHEN 'medium' THEN 3
+         END,
+         er.created_at ASC`
+    );
+
+    const formattedRequests = requests.map(r => ({
+      id: r.request_id.toString(),
+      patientName: r.patient_name,
+      bloodGroup: `${r.bg_name}${r.rh_factor}`,
+      unitsRequired: r.units_required,
+      hospitalName: r.hospital_name,
+      city: r.city || '',
+      area: r.area || '',
+      contactName: r.contact_number, // We'll use contact_number for now
+      contactPhone: r.contact_number,
+      urgency: r.urgency,
+      requiredBy: r.required_by,
+      notes: r.notes,
+      status: r.status,
+      createdAt: r.created_at
+    }));
+
+    res.json({ success: true, requests: formattedRequests, count: formattedRequests.length });
+  } catch (error) {
+    console.error('Error fetching pending requests:', error);
+    res.status(500).json({ error: 'Failed to fetch pending requests' });
+  }
+});
+
+// Admin: Get all emergency requests with filters
+app.get('/api/admin/requests/all', isAdmin, async (req, res) => {
+  try {
+    const { status, urgency, bloodGroup, city } = req.query;
+    
+    let query = `
+      SELECT er.*, l.city, l.area, bg.bg_name, bg.rh_factor
+      FROM EMERGENCY_REQUEST er
+      LEFT JOIN LOCATION l ON er.location_id = l.location_id
+      LEFT JOIN BLOOD_GROUP bg ON er.blood_group = bg.bg_id
+      WHERE 1=1
+    `;
+    
+    const params = [];
+    
+    if (status) {
+      query += ` AND er.status = ?`;
+      params.push(status);
+    }
+    
+    if (urgency) {
+      query += ` AND er.urgency = ?`;
+      params.push(urgency);
+    }
+    
+    if (bloodGroup) {
+      const bgId = await getBloodGroupId(bloodGroup);
+      if (bgId) {
+        query += ` AND er.blood_group = ?`;
+        params.push(bgId);
+      }
+    }
+    
+    if (city) {
+      query += ` AND LOWER(l.city) LIKE LOWER(?)`;
+      params.push(`%${city}%`);
+    }
+    
+    query += ` ORDER BY 
+      CASE er.urgency
+        WHEN 'critical' THEN 1
+        WHEN 'high' THEN 2
+        WHEN 'medium' THEN 3
+      END,
+      er.created_at DESC`;
+    
+    const [requests] = await pool.execute(query, params);
+
+    const formattedRequests = requests.map(r => ({
+      id: r.request_id.toString(),
+      patientName: r.patient_name,
+      bloodGroup: `${r.bg_name}${r.rh_factor}`,
+      unitsRequired: r.units_required,
+      hospitalName: r.hospital_name,
+      city: r.city || '',
+      area: r.area || '',
+      contactPhone: r.contact_number,
+      urgency: r.urgency,
+      requiredBy: r.required_by,
+      notes: r.notes,
+      status: r.status,
+      createdAt: r.created_at,
+      approvedAt: r.approved_at,
+      rejectionReason: r.rejection_reason
+    }));
+
+    res.json({ success: true, requests: formattedRequests, count: formattedRequests.length });
+  } catch (error) {
+    console.error('Error fetching requests:', error);
+    res.status(500).json({ error: 'Failed to fetch requests' });
+  }
+});
+
+// Admin: Approve emergency request and find matches
+app.put('/api/admin/requests/:requestId/approve', isAdmin, async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { adminId } = req.body; // Admin user ID from auth context
+
+    // Get request details
+    const [requests] = await pool.execute(
+      `SELECT er.*, l.city, l.area
+       FROM EMERGENCY_REQUEST er
+       LEFT JOIN LOCATION l ON er.location_id = l.location_id
+       WHERE er.request_id = ?`,
+      [requestId]
+    );
+
+    if (requests.length === 0) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+
+    const request = requests[0];
+
+    if (request.status !== 'pending') {
+      return res.status(400).json({ error: 'Request is not pending' });
+    }
+
+    // Get compatible blood groups
+    const compatibleBgIds = await getCompatibleDonorBloodGroups(request.blood_group);
+
+    // Find compatible, available donors
+    let matchedDonors = [];
+    if (compatibleBgIds.length > 0) {
+      const [donorsData] = await pool.execute(
+        `SELECT d.donor_id, d.full_name, d.blood_group, d.availability, d.last_donate, 
+                l.city, l.area, l.latitude, l.longitude, bg.bg_name, bg.rh_factor
+         FROM DONOR d
+         LEFT JOIN LOCATION l ON d.location_id = l.location_id
+         LEFT JOIN BLOOD_GROUP bg ON d.blood_group = bg.bg_id
+         WHERE d.is_active = TRUE AND d.blood_group IN (${compatibleBgIds.map(() => '?').join(',')})
+         AND LOWER(l.city) LIKE LOWER(?)`,
+        [...compatibleBgIds, `%${request.city}%`]
+      );
+
+      // Get contact numbers
+      const donorIds = donorsData.map(d => d.donor_id);
+      let contactsByDonor = {};
+      
+      if (donorIds.length > 0) {
+        const [contacts] = await pool.execute(
+          `SELECT donor_id, phone_number FROM CONTACT_NUMBER WHERE donor_id IN (${donorIds.map(() => '?').join(',')})`,
+          donorIds
+        );
+        contacts.forEach(c => {
+          if (!contactsByDonor[c.donor_id]) contactsByDonor[c.donor_id] = c.phone_number;
+        });
+      }
+
+      matchedDonors = donorsData
+        .filter(d => {
+          let isAvailable = d.availability;
+          if (d.last_donate) {
+            const daysSince = Math.floor((Date.now() - new Date(d.last_donate).getTime()) / (1000 * 60 * 60 * 24));
+            isAvailable = daysSince >= 90;
+          }
+          return isAvailable;
+        })
+        .map(d => ({
+          id: d.donor_id.toString(),
+          name: d.full_name,
+          bloodGroup: `${d.bg_name}${d.rh_factor}`,
+          city: d.city || '',
+          area: d.area || '',
+          phone: contactsByDonor[d.donor_id] || '',
+          latitude: d.latitude,
+          longitude: d.longitude
+        }));
+    }
+
+    // Update request status to approved
+    await pool.execute(
+      `UPDATE EMERGENCY_REQUEST 
+       SET status = 'approved', admin_id = ?, approved_at = NOW(), updated_at = NOW()
+       WHERE request_id = ?`,
+      [adminId || null, requestId]
+    );
+
+    res.json({ 
+      success: true, 
+      message: 'Request approved successfully',
+      matchedDonors,
+      matchedCount: matchedDonors.length
+    });
+  } catch (error) {
+    console.error('Error approving request:', error);
+    res.status(500).json({ error: 'Failed to approve request' });
+  }
+});
+
+// Admin: Reject emergency request
+app.put('/api/admin/requests/:requestId/reject', isAdmin, async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { reason, adminId } = req.body;
+
+    // Check if request exists
+    const [requests] = await pool.execute(
+      'SELECT request_id, status FROM EMERGENCY_REQUEST WHERE request_id = ?',
+      [requestId]
+    );
+
+    if (requests.length === 0) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+
+    if (requests[0].status !== 'pending') {
+      return res.status(400).json({ error: 'Request is not pending' });
+    }
+
+    // Update request status to rejected
+    await pool.execute(
+      `UPDATE EMERGENCY_REQUEST 
+       SET status = 'rejected', rejection_reason = ?, admin_id = ?, updated_at = NOW()
+       WHERE request_id = ?`,
+      [reason || 'No reason provided', adminId || null, requestId]
+    );
+
+    res.json({ 
+      success: true, 
+      message: 'Request rejected successfully'
+    });
+  } catch (error) {
+    console.error('Error rejecting request:', error);
+    res.status(500).json({ error: 'Failed to reject request' });
+  }
+});
+
+// Get request status by ID (for requesters to check their request)
+app.get('/api/requests/:requestId/status', async (req, res) => {
+  try {
+    const { requestId } = req.params;
+
+    const [requests] = await pool.execute(
+      `SELECT er.*, l.city, l.area, bg.bg_name, bg.rh_factor
+       FROM EMERGENCY_REQUEST er
+       LEFT JOIN LOCATION l ON er.location_id = l.location_id
+       LEFT JOIN BLOOD_GROUP bg ON er.blood_group = bg.bg_id
+       WHERE er.request_id = ?`,
+      [requestId]
+    );
+
+    if (requests.length === 0) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+
+    const r = requests[0];
+    const formattedRequest = {
+      id: r.request_id.toString(),
+      patientName: r.patient_name,
+      bloodGroup: `${r.bg_name}${r.rh_factor}`,
+      unitsRequired: r.units_required,
+      hospitalName: r.hospital_name,
+      city: r.city || '',
+      area: r.area || '',
+      urgency: r.urgency,
+      requiredBy: r.required_by,
+      status: r.status,
+      createdAt: r.created_at,
+      approvedAt: r.approved_at,
+      rejectionReason: r.rejection_reason
+    };
+
+    res.json({ success: true, request: formattedRequest });
+  } catch (error) {
+    console.error('Error fetching request status:', error);
+    res.status(500).json({ error: 'Failed to fetch request status' });
   }
 });
 
