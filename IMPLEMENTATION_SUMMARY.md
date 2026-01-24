@@ -498,16 +498,205 @@ interface MatchedDonor {
 ## Files Modified
 
 1. `src/components/DonorSearch.tsx`
-2. `src/components/EmergencyRequest.tsx`
+2. `src/components/EmergencyRequest.tsx` - **Updated to show previous requests and matched donors**
 3. `src/components/Admin/AdminDashboard.tsx`
 4. `src/App.tsx`
-5. `server/index.js`
+5. `server/index.js` - **Added endpoints for matched donors and user requests**
 
 ## Files Created
 
 1. `migrations/001_update_emergency_request_table.sql`
-2. `src/components/Admin/AdminEmergencyRequests.tsx`
-3. `IMPLEMENTATION_SUMMARY.md` (this file)
+2. `migrations/002_create_matched_donors_table.sql` - **New migration for storing matched donors**
+3. `src/components/Admin/AdminEmergencyRequests.tsx`
+4. `IMPLEMENTATION_SUMMARY.md` (this file)
+
+## New Features Added (2026-01-24)
+
+### 1. Database: Matched Donors Storage
+**File:** `migrations/002_create_matched_donors_table.sql`
+
+**Description:**
+- Created `EMERGENCY_REQUEST_MATCHED_DONORS` table to persist matched donors for each emergency request
+- Links donors to requests via foreign keys
+- Automatically populated when admin approves a request
+- Allows request creators to retrieve matched donor information later
+
+**Schema:**
+```sql
+CREATE TABLE EMERGENCY_REQUEST_MATCHED_DONORS (
+    match_id INT PRIMARY KEY AUTO_INCREMENT,
+    request_id INT NOT NULL,
+    donor_id INT NOT NULL,
+    matched_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (request_id) REFERENCES EMERGENCY_REQUEST(request_id) ON DELETE CASCADE,
+    FOREIGN KEY (donor_id) REFERENCES DONOR(donor_id) ON DELETE CASCADE,
+    UNIQUE KEY unique_request_donor (request_id, donor_id)
+);
+```
+
+### 2. Backend: New API Endpoints
+
+#### `GET /api/requests/my-requests/:contactNumber`
+**Purpose:** Fetch all emergency requests created by a specific contact number
+
+**Features:**
+- Returns all requests made by the user (identified by contact number)
+- Includes matched donors for approved requests
+- Sorted by creation date (newest first)
+- Public endpoint (no authentication required)
+
+**Response:**
+```json
+{
+  "success": true,
+  "requests": [
+    {
+      "id": "123",
+      "status": "approved",
+      "patientName": "John Doe",
+      "bloodGroup": "O+",
+      "matchedDonors": [
+        {
+          "id": "456",
+          "name": "Jane Smith",
+          "bloodGroup": "O+",
+          "city": "Dhaka",
+          "area": "Dhanmondi",
+          "phone": "01712345678"
+        }
+      ]
+    }
+  ],
+  "count": 1
+}
+```
+
+#### `DELETE /api/requests/:requestId`
+**Purpose:** Allow request creators to delete their own requests
+
+**Security:**
+- Requires contact number in request body
+- Verifies ownership before deletion
+- Returns 403 if contact number doesn't match
+
+**Request Body:**
+```json
+{
+  "contactNumber": "01712345678"
+}
+```
+
+#### Modified: `PUT /api/admin/requests/:requestId/approve`
+**New Behavior:**
+- After finding compatible donors, saves them to `EMERGENCY_REQUEST_MATCHED_DONORS` table
+- Uses bulk insert for efficiency
+- Matched donors persist in database for retrieval by request creator
+
+#### Modified: `GET /api/requests/:requestId/status`
+**New Behavior:**
+- For approved requests, fetches and returns matched donors from database
+- Includes donor contact information
+- Request creators can now see their matched donors
+
+### 3. Frontend: Enhanced Emergency Request Component
+
+**File:** `src/components/EmergencyRequest.tsx`
+
+**Major Changes:**
+1. **Contact Number Entry Screen**
+   - Users must first enter their contact number
+   - This number is used to identify and fetch their requests
+   - Validates Bangladesh phone number format
+
+2. **Request Management Dashboard**
+   - Shows all previous requests made by the user
+   - Displays status for each request (pending/approved/rejected/completed)
+   - Collapsible request cards with full details
+   - Color-coded status and urgency badges
+
+3. **Matched Donors Display**
+   - For approved requests, shows all matched donors
+   - Displays donor name, blood group, location, and phone number
+   - Phone numbers are clickable (tel: links)
+   - Grid layout for easy scanning
+
+4. **Delete Functionality**
+   - Users can delete old requests with confirmation dialog
+   - Trash icon on each request card
+   - Automatically refreshes list after deletion
+
+5. **Create New Request**
+   - Toggle button to show/hide form
+   - Form pre-fills contact number from entry screen
+   - After submission, automatically refreshes request list
+   - No longer shows immediate success message with Request ID
+
+**User Flow:**
+1. User enters contact number → validates → continues
+2. Sees all their previous requests
+3. Can expand any request to see details
+4. Sees matched donors for approved requests
+5. Can delete old requests
+6. Can create new requests
+7. Can refresh list or change contact number
+
+### 4. Deployment Instructions Update
+
+**Database Migration:**
+Run the new migration after deploying:
+```bash
+mysql -u your_username -p blood_donor_management < migrations/002_create_matched_donors_table.sql
+```
+
+**Testing the New Features:**
+
+1. **Test Request Creator Flow:**
+   - Navigate to Emergency Request page
+   - Enter a valid Bangladesh phone number
+   - Create a new emergency request
+   - Note the request appears in the list with "Pending" status
+
+2. **Test Admin Approval:**
+   - Login as admin
+   - Navigate to Emergency Requests
+   - Approve the pending request
+   - Verify matched donors are shown to admin
+
+3. **Test Request Creator Sees Results:**
+   - Go back to Emergency Request page (as the request creator)
+   - Enter the same contact number
+   - Verify the request now shows "Approved" status
+   - Expand the request
+   - Verify matched donors are displayed with contact information
+
+4. **Test Delete:**
+   - Click the trash icon on any request
+   - Confirm deletion
+   - Verify request is removed from the list
+
+## API Documentation Updates
+
+### New Request Object (Extended)
+```typescript
+interface EmergencyRequestData {
+  id: string;
+  patientName: string;
+  bloodGroup: string;
+  unitsRequired: number;
+  hospitalName: string;
+  city: string;
+  area: string;
+  urgency: 'critical' | 'high' | 'medium';
+  requiredBy: string;
+  contactNumber: string;
+  notes: string;
+  status: 'pending' | 'approved' | 'rejected' | 'completed';
+  createdAt: string;
+  approvedAt?: string;
+  rejectionReason?: string;
+  matchedDonors?: MatchedDonor[];  // NEW: Available for approved requests
+}
+```
 
 ## Success Criteria Checklist
 
@@ -520,6 +709,11 @@ interface MatchedDonor {
 - [x] Admin can reject requests with reason
 - [x] Request status updates correctly throughout workflow
 - [x] Frontend builds successfully
+- [x] Matched donors are saved to database when admin approves
+- [x] Request creators can view all their requests by entering contact number
+- [x] Request creators can see matched donors for approved requests
+- [x] Request creators can delete old requests
+- [x] Request creators can create new requests
 - [ ] All manual tests pass
 - [ ] Database migration runs successfully
 - [ ] All existing functionality remains intact (to be verified)
