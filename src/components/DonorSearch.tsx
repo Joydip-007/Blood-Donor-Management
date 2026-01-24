@@ -138,76 +138,75 @@ export function DonorSearch() {
 
       {/* Map View */}
       <div className="bg-white rounded-lg shadow-md p-6 md:p-8">
-          <div className="mb-4 md:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <h3 className="font-semibold text-base md:text-lg flex items-center gap-2">
-              <MapIcon size={20} className="text-red-600" />
-              Donor Location Map
-            </h3>
-            <span className="text-sm md:text-base text-gray-700 font-medium">
-              {donorsWithLocation.length} donor{donorsWithLocation.length !== 1 ? 's' : ''} with location data
-            </span>
-          </div>
-
-          {donorsWithLocation.length > 0 ? (
-            <div className="space-y-4 md:space-y-6">
-              {/* Donor Location Map */}
-              <DonorMap donors={donorsWithLocation} />
-
-              {/* Donor Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                {donorsWithLocation.map((donor) => (
-                  <div key={donor.id} className="border border-gray-200 rounded-lg p-4 md:p-5 hover:shadow-md transition-shadow">
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-base md:text-lg">{donor.name}</h4>
-                        <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium inline-flex items-center gap-1 mt-2">
-                          <Droplet size={12} />
-                          {donor.bloodGroup}
-                        </span>
-                      </div>
-                      {donor.isAvailable && (
-                        <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
-                          Available
-                        </span>
-                      )}
-                    </div>
-                    <div className="space-y-2 text-sm md:text-base text-gray-700">
-                      <div className="flex items-center gap-2">
-                        <MapPin size={14} className="flex-shrink-0" />
-                        <span>{donor.area}, {donor.city}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <MapIcon size={14} className="flex-shrink-0" />
-                        <span className="text-xs">
-                          {donor.latitude !== null && donor.latitude !== undefined ? Number(donor.latitude).toFixed(4) : 'N/A'}, 
-                          {donor.longitude !== null && donor.longitude !== undefined ? Number(donor.longitude).toFixed(4) : 'N/A'}
-                        </span>
-                      </div>
-                      {donor.isAvailable && (
-                        <a
-                          href={`tel:${donor.phone}`}
-                          className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium min-h-[44px] pt-2"
-                        >
-                          <Phone size={14} />
-                          {donor.phone}
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 md:p-8 text-center">
-              <MapIcon size={48} className="text-yellow-500 mx-auto mb-4" />
-              <p className="text-yellow-900 font-medium mb-2 text-base md:text-lg">No Location Data Available</p>
-              <p className="text-sm md:text-base text-yellow-800">
-                None of the donors in the current search results have location coordinates.
-                Try different search criteria or encourage donors to add their location.
-              </p>
-            </div>
-          )}
+        <div className="mb-4 md:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <h3 className="font-semibold text-base md:text-lg flex items-center gap-2">
+            <MapIcon size={20} className="text-red-600" />
+            Donor Location Map
+          </h3>
+          <span className="text-sm md:text-base text-gray-700 font-medium">
+            {donorsWithLocation.length} donor{donorsWithLocation.length !== 1 ? 's' : ''} with location data
+          </span>
         </div>
+
+        {donorsWithLocation.length > 0 ? (
+          <div className="space-y-4 md:space-y-6">
+            {/* Donor Location Map */}
+            <DonorMap donors={donorsWithLocation} />
+
+            {/* Donor Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+              {donorsWithLocation.map((donor) => (
+                <div key={donor.id} className="border border-gray-200 rounded-lg p-4 md:p-5 hover:shadow-md transition-shadow">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-base md:text-lg">{donor.name}</h4>
+                      <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium inline-flex items-center gap-1 mt-2">
+                        <Droplet size={12} />
+                        {donor.bloodGroup}
+                      </span>
+                    </div>
+                    {donor.isAvailable && (
+                      <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
+                        Available
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-2 text-sm md:text-base text-gray-700">
+                    <div className="flex items-center gap-2">
+                      <MapPin size={14} className="flex-shrink-0" />
+                      <span>{donor.area}, {donor.city}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MapIcon size={14} className="flex-shrink-0" />
+                      <span className="text-xs">
+                        {donor.latitude !== null && donor.latitude !== undefined ? Number(donor.latitude).toFixed(4) : 'N/A'}, 
+                        {donor.longitude !== null && donor.longitude !== undefined ? Number(donor.longitude).toFixed(4) : 'N/A'}
+                      </span>
+                    </div>
+                    {donor.isAvailable && (
+                      <a
+                        href={`tel:${donor.phone}`}
+                        className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium min-h-[44px] pt-2"
+                      >
+                        <Phone size={14} />
+                        {donor.phone}
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 md:p-8 text-center">
+            <MapIcon size={48} className="text-yellow-500 mx-auto mb-4" />
+            <p className="text-yellow-900 font-medium mb-2 text-base md:text-lg">No Location Data Available</p>
+            <p className="text-sm md:text-base text-yellow-800">
+              None of the donors in the current search results have location coordinates.
+              Try different search criteria or encourage donors to add their location.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Info Box */}
