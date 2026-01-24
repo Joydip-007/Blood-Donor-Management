@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, MapPin, Droplet, Phone, Map as MapIcon, Filter } from 'lucide-react';
+import { MapPin, Droplet, Phone, Map as MapIcon, Filter } from 'lucide-react';
 import { API_BASE_URL } from '../utils/api';
 import { BloodGroup, Donor } from '../types';
 import { DonorMap } from './DonorMap';
@@ -59,18 +59,22 @@ export function DonorSearch() {
 
   // Client-side filtering of donors
   const filteredDonors = allDonors.filter(donor => {
+    // Pre-convert filter values to lowercase for performance
+    const cityFilter = filters.city.toLowerCase();
+    const areaFilter = filters.area.toLowerCase();
+    
     // Filter by blood group
     if (filters.bloodGroup && donor.bloodGroup !== filters.bloodGroup) {
       return false;
     }
     
     // Filter by city (case-insensitive partial match)
-    if (filters.city && !donor.city.toLowerCase().includes(filters.city.toLowerCase())) {
+    if (cityFilter && !donor.city.toLowerCase().includes(cityFilter)) {
       return false;
     }
     
     // Filter by area (case-insensitive partial match)
-    if (filters.area && !donor.area.toLowerCase().includes(filters.area.toLowerCase())) {
+    if (areaFilter && !donor.area.toLowerCase().includes(areaFilter)) {
       return false;
     }
     
