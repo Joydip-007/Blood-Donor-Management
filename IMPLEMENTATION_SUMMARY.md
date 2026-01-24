@@ -205,10 +205,83 @@ ALTER TABLE EMERGENCY_REQUEST
 - Added new route/view for emergency requests
 - Updated viewMap to include 'emergency-requests' → 'admin-emergency-requests'
 
-## Testing Instructions
+## Deployment Instructions (Railway + Vercel)
+
+Since you mentioned using Railway for backend/database and Vercel for frontend, here are the deployment steps:
+
+### Step 1: Deploy Database Migration to Railway
+
+You have two options to run the migration on Railway MySQL:
+
+**Option A: Using Railway CLI (Recommended)**
+```bash
+# Install Railway CLI if you haven't
+npm i -g @railway/cli
+
+# Login to Railway
+railway login
+
+# Link to your project
+railway link
+
+# Connect to MySQL and run migration
+railway run mysql -u root -p < migrations/001_update_emergency_request_table.sql
+```
+
+**Option B: Using Direct MySQL Connection**
+1. Get your Railway MySQL credentials from the Railway dashboard
+2. Run the migration:
+```bash
+mysql -h <railway-mysql-host> -u <railway-user> -p<railway-password> blood_donor_management < migrations/001_update_emergency_request_table.sql
+```
+
+**Option C: Using Railway MySQL Console**
+1. Go to your Railway project dashboard
+2. Click on your MySQL service
+3. Open the "Data" tab or "Connect" tab
+4. Copy the contents of `migrations/001_update_emergency_request_table.sql`
+5. Paste and execute in the Railway MySQL console
+
+### Step 2: Deploy Backend Changes to Railway
+
+Railway should automatically deploy when you push to your main branch. If not:
+
+```bash
+git push origin main
+```
+
+Railway will detect the changes in the `server` directory and redeploy automatically.
+
+### Step 3: Deploy Frontend Changes to Vercel
+
+Vercel should automatically deploy when you push to your main branch. If not:
+
+```bash
+git push origin main
+```
+
+Or manually trigger a deployment from the Vercel dashboard.
+
+### Step 4: Verify Deployment
+
+1. **Check Backend Health:**
+   ```
+   GET https://your-backend.railway.app/api/health
+   ```
+
+2. **Test New Endpoints:**
+   - `GET https://your-backend.railway.app/api/admin/requests/pending`
+   - Should return `{"success": true, "requests": [], "count": 0}` if no requests yet
+
+3. **Check Frontend:**
+   - Visit your Vercel URL
+   - Try accessing "Find Donors" - should show map only
+   - Try creating an emergency request - should show pending status
+
+## Local Testing Instructions
 
 ### Prerequisites
-1. Run the database migration:
+1. Run the database migration (local development):
 ```bash
 mysql -u your_username -p blood_donor_management < migrations/001_update_emergency_request_table.sql
 ```
