@@ -1239,7 +1239,7 @@ app.post('/api/requests/create', async (req, res) => {
     } = req.body;
 
     // Validate required fields
-    if (!patientName || !bloodGroup || !hospitalName || !city || !contactName || !contactPhone) {
+    if (!patientName || !bloodGroup || !hospitalName || !city || !contactPhone) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 

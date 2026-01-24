@@ -3,6 +3,7 @@ import { Search, MapPin, Droplet, Phone, Map as MapIcon, Filter } from 'lucide-r
 import { API_BASE_URL } from '../utils/api';
 import { BloodGroup, Donor } from '../types';
 import { DonorMap } from './DonorMap';
+// Note: debug utility removed as viewMode is now always 'map' and doesn't need logging
 
 export function DonorSearch() {
   const [donors, setDonors] = useState<Donor[]>([]);

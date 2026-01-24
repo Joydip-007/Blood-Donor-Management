@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AlertCircle, Phone, MapPin, Droplet, Clock, User, Building, CheckCircle } from 'lucide-react';
 import { API_BASE_URL } from '../utils/api';
 import { BloodGroup } from '../types';
+// Note: MatchedDonor type removed as donors are no longer shown immediately after request submission
 import { validateBangladeshPhone } from '../utils/phoneUtils';
 
 export function EmergencyRequest() {

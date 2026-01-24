@@ -110,7 +110,7 @@ export function AdminEmergencyRequests({ onBack }: Props) {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ adminId: 1 }), // TODO: Get actual admin ID from auth context
+          body: JSON.stringify({ adminId: 1 }), // TODO: Get actual admin ID from auth context once auth system provides it
         }
       );
 
@@ -155,7 +155,7 @@ export function AdminEmergencyRequests({ onBack }: Props) {
           },
           body: JSON.stringify({ 
             reason: rejectionReason,
-            adminId: 1 // TODO: Get actual admin ID from auth context
+            adminId: 1 // TODO: Get actual admin ID from auth context once auth system provides it
           }),
         }
       );
