@@ -235,10 +235,8 @@ function AppContent() {
             const viewMap: Record<string, typeof activeTab> = {
               'add': 'admin-add',
               'list': 'admin-list',
-              'edit': 'admin-edit',
               'stats': 'admin-stats',
               'settings': 'admin-settings',
-              'inactive': 'admin-inactive',
               'emergency-requests': 'admin-emergency-requests'
             };
             setActiveTab(viewMap[view] || 'admin');

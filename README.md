@@ -1,257 +1,149 @@
-# Blood Donor Management App
+# Blood Donor Management System
 
-A comprehensive blood donor management system with a React frontend and Express.js/MySQL backend, following the Entity-Relationship Diagram (ERD) defined in the repository.
+A modern web application for managing blood donors, built with React, TypeScript, and Node.js.
+
+![Blood Donor Management](logo.png)
+
+## Features
+
+- **User Registration & Authentication**: Secure signup/login with OTP verification
+- **Donor Profile Management**: Complete donor profiles with blood group, location, and availability
+- **Emergency Blood Requests**: Submit and track emergency blood requests
+- **Donor Search**: Find donors by blood group, location, and availability
+- **Admin Dashboard**: Comprehensive management tools for administrators
+- **Statistics & Reports**: Visual analytics on donor data and blood group distribution
+- **Location-based Search**: Find nearby donors using geolocation
+
+## Tech Stack
+
+- **Frontend**: React 18, TypeScript, Tailwind CSS, Vite
+- **Backend**: Node.js, Express.js
+- **Database**: PostgreSQL
+- **Authentication**: JWT with OTP verification
+- **Maps**: Leaflet for location services
+
+## Prerequisites
+
+- Node.js 18+ 
+- PostgreSQL database
+- npm or yarn
+
+## Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/Joydip-007/Blood-Donor-Management.git
+   cd Blood-Donor-Management
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Set up environment variables**
+   
+   Create a `.env` file in the root directory (see `.env.example`):
+   ```env
+   DATABASE_URL=your_postgresql_connection_string
+   JWT_SECRET=your_jwt_secret
+   VITE_API_URL=http://localhost:3000
+   ```
+
+4. **Set up the database**
+   ```bash
+   # Run the database migrations
+   psql -d your_database -f database.sql
+   ```
+
+5. **Start the development server**
+   ```bash
+   # Start backend server
+   npm run server
+   
+   # In another terminal, start frontend
+   npm run dev
+   ```
 
 ## Project Structure
 
 ```
-├── database.sql          # MySQL database schema (from ERD)
-├── erd.jpeg              # Entity Relationship Diagram
-├── index.html            # Frontend entry point
-├── package.json          # Frontend dependencies
-├── vite.config.ts        # Vite configuration
-├── src/                  # Frontend React application
-│   ├── components/       # React components
-│   ├── contexts/         # React contexts (Auth)
-│   ├── types/            # TypeScript type definitions
-│   └── utils/            # Utility functions (API config)
-└── server/               # Backend Express.js API
-    ├── index.js          # API server
-    ├── package.json      # Server dependencies
-    └── .env.example      # Environment configuration template
+├── src/
+│   ├── components/
+│   │   ├── Admin/           # Admin dashboard components
+│   │   ├── Auth/            # Authentication components
+│   │   └── ...              # Other feature components
+│   ├── contexts/            # React contexts (Auth, etc.)
+│   ├── utils/               # Utility functions
+│   └── types/               # TypeScript type definitions
+├── server/
+│   └── index.js             # Express backend server
+├── migrations/              # Database migrations
+└── database.sql             # Database schema
 ```
 
-## Database Schema (ERD)
+## Admin Features
 
-The system follows the ERD structure with the following tables:
-
-- **LOCATION**: Stores location information (city, area, coordinates)
-- **BLOOD_GROUP**: Blood types and Rh factors (A+, A-, B+, B-, AB+, AB-, O+, O-)
-- **DONOR**: Donor information with relationships to LOCATION and BLOOD_GROUP
-- **CONTACT_NUMBER**: Multiple phone numbers per donor (1:N relationship)
-- **BLOOD_COMPATIBILITY**: Blood type compatibility rules for matching donors
-- **EMERGENCY_REQUEST**: Emergency blood requests from hospitals
-- **OTP**: OTP verification records for authentication
-
-## Setup Instructions
-
-### 1. Database Setup
-
-1. Install MySQL and create the database:
-   ```bash
-   mysql -u root -p < database.sql
-   ```
-
-2. This will create the `blood_donor_management` database with all required tables and seed data.
-
-### 2. Backend Server Setup
-
-1. Navigate to the server directory:
-   ```bash
-   cd server
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Create `.env` file from template:
-   ```bash
-   cp .env.example .env
-   ```
-
-4. Configure database connection in `.env`:
-   ```
-   DB_HOST=localhost
-   DB_USER=root
-   DB_PASSWORD=your_password
-   DB_NAME=blood_donor_management
-   PORT=3001
-   ```
-
-5. Start the server:
-   ```bash
-   npm start
-   ```
-
-### 3. Frontend Setup
-
-1. In the root directory, install dependencies:
-   ```bash
-   npm install
-   ```
-
-2. (Optional) Configure API URL in `.env`:
-   ```
-   VITE_API_URL=http://localhost:3001
-   ```
-
-3. Start the development server:
-   ```bash
-   npm run dev
-   ```
+Administrators have access to:
+- Add donors manually (without OTP verification)
+- View and manage all registered donors
+- Edit donor profiles and blood groups
+- Activate/deactivate donor accounts
+- Review and approve emergency blood requests
+- View statistics and generate reports
+- Configure system settings
 
 ## API Endpoints
 
 ### Authentication
-- `POST /api/auth/request-otp` - Request OTP for login/signup
-- `POST /api/auth/verify-otp` - Verify OTP and get session token
+- `POST /api/auth/register` - Register new user
+- `POST /api/auth/login` - User login
+- `POST /api/auth/verify-otp` - Verify OTP
 
 ### Donors
-- `POST /api/donors/register` - Register a new donor
+- `GET /api/donors/search` - Search donors
 - `GET /api/donors/profile` - Get donor profile
+- `POST /api/donors/register` - Register as donor
 - `PUT /api/donors/profile` - Update donor profile
-- `DELETE /api/donors/profile` - Soft delete donor (deactivate)
-- `POST /api/donors/search` - Search donors with filters
 
-### Emergency Requests
-- `POST /api/requests/create` - Create emergency blood request
-- `GET /api/requests/active` - Get all active requests
+### Admin
+- `GET /api/admin/donors/all` - Get all donors
+- `PUT /api/admin/donors/:id` - Update donor
+- `DELETE /api/admin/donors/:id` - Deactivate donor
+- `PATCH /api/admin/donors/:id/availability` - Toggle availability
 
-### Statistics
-- `GET /api/statistics` - Get donor statistics
+## Deployment
 
-## Key Features
+### Vercel Deployment
 
-- **OTP-based Authentication**: Secure login via email or phone OTP
-- **Blood Compatibility Matching**: Uses BLOOD_COMPATIBILITY table to find compatible donors
-- **90-Day Availability Logic**: Donors become unavailable for 90 days after donation
-- **Location-based Search**: Find donors by city and area
-- **Geocoding**: Automatic coordinate fetching using Google Maps or Locationiq API
-- **Soft Delete**: Donor profiles can be deactivated without losing data
-- **Normalized Database**: 3NF compliant schema matching the ERD
+1. Connect your GitHub repository to Vercel
+2. Set environment variables in Vercel dashboard
+3. Deploy with default settings
 
-## 🗺️ Geocoding Configuration
+### Manual Deployment
 
-This application supports two geocoding providers for automatic location coordinate detection.
-
-### Supported Providers
-
-#### Option 1: Google Maps Geocoding API (Recommended)
-
-**Pros:**
-- ✅ Most accurate, especially for Bangladesh
-- ✅ Better address parsing
-- ✅ $200 free credits/month (~40,000 requests)
-- ✅ Highly reliable
-
-**Setup:**
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Enable **Geocoding API**
-3. Create an API key
-4. (Optional) Restrict the API key:
-   - API restrictions: Enable only "Geocoding API"
-   - Application restrictions: Add your domain
-
-**Environment Variables (Railway):**
-```bash
-GEOCODING_PROVIDER=google
-GEOCODING_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXX
-```
-
-#### Option 2: Locationiq
-
-**Pros:**
-- ✅ Free tier: 5,000 requests/day
-- ✅ No credit card required
-- ✅ Uses OpenStreetMap data
-
-**Setup:**
-1. Sign up at [Locationiq](https://locationiq.com/)
-2. Get your free API key
-
-**Environment Variables (Railway):**
-```bash
-GEOCODING_PROVIDER=locationiq
-GEOCODING_API_KEY=pk.xxxxxxxxxxxxxxxxxx
-```
-
-### Optional: Enable Fallback Provider
-
-If you want automatic fallback when primary provider fails:
-
-```bash
-ENABLE_GEOCODING_FALLBACK=true
-```
-
-This will try the alternative provider if the primary one fails.
-
-### Frontend Configuration (Vercel)
-
-No changes needed - the frontend calls the backend API endpoint which handles geocoding.
-
-Optional (if calling geocoding from frontend directly):
-```bash
-VITE_API_URL=https://your-backend.railway.app
-```
-
-### Testing Geocoding
-
-1. **Via API endpoint:**
+1. Build the frontend:
    ```bash
-   curl -X POST https://your-backend.railway.app/api/geocode \
-     -H "Content-Type: application/json" \
-     -d '{"city": "Dhaka", "area": "Gulshan"}'
+   npm run build
    ```
 
-2. **Via registration form:**
-   - Enter City: "Dhaka"
-   - Enter Area: "Gulshan"
-   - Click "Auto-fill Coordinates"
-   - Should populate: Lat: ~23.7925, Lng: ~90.4078
-
-3. **Check health endpoint:**
+2. Start the production server:
    ```bash
-   curl https://your-backend.railway.app/api/health
+   npm run start
    ```
-   Should show: `"geocoding": "available (google)"` or `"available (locationiq)"`
 
-### API Usage Limits
+## Contributing
 
-| Provider | Free Tier | Rate Limit | Monthly Limit |
-|----------|-----------|------------|---------------|
-| **Google Maps** | $200 credits | No strict limit | ~40,000 requests |
-| **Locationiq** | Free | 2 req/sec | 5,000/day (150k/month) |
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-For your blood donor app with typical usage, both should stay within free tier! 🎉
+## License
 
-### Features
+This project is licensed under the terms specified in the [LICENSE](LICENSE) file.
 
-- ✅ Auto-fill coordinates from city/area
-- ✅ Manual coordinate entry
-- ✅ Admin bulk geocoding for existing locations
-- ✅ Automatic provider detection
-- ✅ Optional fallback to alternative provider
+## Support
 
-### Usage
-
-1. **During donor registration:** Enter city and area, then click "Auto-fill Coordinates"
-2. **Admin panel:** Use "Geocode All Locations" button to bulk geocode existing data
-
-## Database Migration
-
-If you have an existing database, run the migration to update coordinate columns:
-
-```bash
-mysql -u root -p blood_donor_management < migrations/001_update_location_coordinates.sql
-```
-
-This migration:
-- Cleans invalid coordinate data
-- Updates latitude/longitude to DECIMAL type for precision
-- Adds index for better query performance
-
-## Tech Stack
-
-- **Frontend**: React, TypeScript, Vite, Tailwind CSS, Recharts
-- **Backend**: Express.js, Node.js
-- **Database**: MySQL
-- **Authentication**: OTP-based (in-memory sessions for demo)
-
-## Original Project
-
-This code bundle is based on the original Figma design available at:
-https://www.figma.com/design/yaNn4bjpwXqXcUUdUlSih2/Blood-Donor-Management-App
-
-  
+For support, please open an issue in the GitHub repository.

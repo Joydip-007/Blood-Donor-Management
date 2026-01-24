@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Users, UserPlus, BarChart, Shield, Edit, Settings, Activity, RefreshCcw, Download, CheckCircle, AlertCircle } from 'lucide-react';
+import { Users, UserPlus, BarChart, Shield, Settings, RefreshCcw, Download, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_BASE_URL } from '../../utils/api';
 
 interface Props {
-  onNavigate: (view: 'add' | 'list' | 'edit' | 'stats' | 'settings' | 'inactive' | 'emergency-requests') => void;
+  onNavigate: (view: 'add' | 'list' | 'stats' | 'settings' | 'emergency-requests') => void;
 }
 
 export function AdminDashboard({ onNavigate }: Props) {
@@ -129,8 +129,8 @@ export function AdminDashboard({ onNavigate }: Props) {
           </div>
         </div>
 
-        {/* 6 Main Action Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
+        {/* 5 Main Action Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mt-8">
           {/* Emergency Requests - NEW */}
           <button
             onClick={() => onNavigate('emergency-requests')}
@@ -184,22 +184,6 @@ export function AdminDashboard({ onNavigate }: Props) {
             </div>
           </button>
 
-          {/* Edit Donor Profiles */}
-          <button
-            onClick={() => onNavigate('edit')}
-            className="bg-gradient-to-br from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 rounded-lg p-6 text-left transition-all hover:shadow-lg border-2 border-purple-200"
-          >
-            <div className="flex items-center gap-4">
-              <div className="p-4 bg-purple-600 rounded-full">
-                <Edit className="text-white" size={28} />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Edit Donor Profiles</h2>
-                <p className="text-gray-600 text-sm mt-1">Quick profile editing</p>
-              </div>
-            </div>
-          </button>
-
           {/* Statistics & Reports */}
           <button
             onClick={() => onNavigate('stats')}
@@ -212,22 +196,6 @@ export function AdminDashboard({ onNavigate }: Props) {
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">Statistics & Reports</h2>
                 <p className="text-gray-600 text-sm mt-1">View detailed analytics</p>
-              </div>
-            </div>
-          </button>
-
-          {/* Inactive Donors */}
-          <button
-            onClick={() => onNavigate('inactive')}
-            className="bg-gradient-to-br from-red-50 to-red-100 hover:from-red-100 hover:to-red-200 rounded-lg p-6 text-left transition-all hover:shadow-lg border-2 border-red-200"
-          >
-            <div className="flex items-center gap-4">
-              <div className="p-4 bg-red-600 rounded-full">
-                <Activity className="text-white" size={28} />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Inactive Donors</h2>
-                <p className="text-gray-600 text-sm mt-1">Manage deactivated accounts</p>
               </div>
             </div>
           </button>
@@ -249,46 +217,11 @@ export function AdminDashboard({ onNavigate }: Props) {
           </button>
         </div>
 
-        {/* Admin Privileges Section */}
-        <div className="mt-8 p-6 bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-300 rounded-lg">
-          <h3 className="font-semibold text-yellow-900 mb-3 flex items-center gap-2 text-lg">
-            <Shield size={24} />
-            Admin Privileges & Capabilities
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            <div className="flex items-center gap-2 text-sm text-yellow-800">
-              <CheckCircle size={16} className="text-green-600" />
-              Add donors manually without OTP verification
-            </div>
-            <div className="flex items-center gap-2 text-sm text-yellow-800">
-              <CheckCircle size={16} className="text-green-600" />
-              View complete list of all registered donors
-            </div>
-            <div className="flex items-center gap-2 text-sm text-yellow-800">
-              <CheckCircle size={16} className="text-green-600" />
-              Edit and update donor profile information
-            </div>
-            <div className="flex items-center gap-2 text-sm text-yellow-800">
-              <CheckCircle size={16} className="text-green-600" />
-              Change donor blood group and personal details
-            </div>
-            <div className="flex items-center gap-2 text-sm text-yellow-800">
-              <CheckCircle size={16} className="text-green-600" />
-              Manage donor availability status
-            </div>
-            <div className="flex items-center gap-2 text-sm text-yellow-800">
-              <CheckCircle size={16} className="text-green-600" />
-              Activate/deactivate donor accounts
-            </div>
-            <div className="flex items-center gap-2 text-sm text-yellow-800">
-              <CheckCircle size={16} className="text-green-600" />
-              Access detailed statistics and reports
-            </div>
-            <div className="flex items-center gap-2 text-sm text-yellow-800">
-              <CheckCircle size={16} className="text-green-600" />
-              Export donor data and generate reports
-            </div>
-          </div>
+        {/* Admin Footer */}
+        <div className="mt-8 p-4 bg-gray-50 border border-gray-200 rounded-lg text-center">
+          <p className="text-sm text-gray-600">
+            As an admin, you have full access to manage donors, review requests, and configure system settings.
+          </p>
         </div>
       </div>
     </div>
