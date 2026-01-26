@@ -129,17 +129,22 @@ CREATE TABLE EMERGENCY_REQUEST_MATCHED_DONORS (
 
 -- =============================================
 -- Table: OTP
--- Description: Stores OTP codes for donor verification
--- Relationships:
---   - References DONOR for donor_id (FK)
+-- Description: Stores OTP codes for email verification during registration
+-- Note: Currently the application uses in-memory storage (otpStore Map)
+--       This table is designed for production use with persistent OTP storage
+-- Design: Email-based (not donor_id) because OTP is sent BEFORE donor creation
+--         during registration. Once verified, the donor record is created.
+-- Cleanup: Implement a scheduled job to delete expired OTP records (expires_at < NOW())
 -- =============================================
 CREATE TABLE OTP (
     otp_id INT PRIMARY KEY AUTO_INCREMENT,
-    donor_id INT NOT NULL,
+    email VARCHAR(255) NOT NULL,
     otp_code VARCHAR(10) NOT NULL,
-    expiry_time DATETIME NOT NULL,
-    is_verified BOOLEAN DEFAULT FALSE,
-    FOREIGN KEY (donor_id) REFERENCES DONOR(donor_id) ON DELETE CASCADE ON UPDATE CASCADE
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    expires_at DATETIME NOT NULL,
+    verified BOOLEAN DEFAULT FALSE,
+    INDEX idx_otp_email (email),
+    INDEX idx_otp_expires (expires_at)
 );
 
 -- =============================================
@@ -196,5 +201,3 @@ CREATE INDEX idx_emergency_required_by ON EMERGENCY_REQUEST(required_by);
 CREATE INDEX idx_matched_request ON EMERGENCY_REQUEST_MATCHED_DONORS(request_id);
 CREATE INDEX idx_matched_donor ON EMERGENCY_REQUEST_MATCHED_DONORS(donor_id);
 CREATE INDEX idx_location_coordinates ON LOCATION(latitude, longitude);
-CREATE INDEX idx_otp_donor ON OTP(donor_id);
-CREATE INDEX idx_otp_expiry ON OTP(expiry_time);

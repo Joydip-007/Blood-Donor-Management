@@ -18,16 +18,19 @@ A modern web application for managing blood donors, built with React, TypeScript
 
 - **Frontend**: React 18, TypeScript, Tailwind CSS, Vite
 - **Backend**: Node.js, Express.js
-- **Database**: PostgreSQL
+- **Database**: PostgreSQL (MySQL compatible)
 - **Authentication**: JWT with OTP verification
-- **Maps**: Google Maps Static API for location visualization and geocoding
+- **Maps**: Google Maps Static API for location visualization
+- **Geocoding**: Google Maps Geocoding API / Locationiq (configurable)
+- **Email Service**: Resend for OTP delivery
 
 ## Prerequisites
 
 - Node.js 18+ 
-- PostgreSQL database
+- PostgreSQL (or MySQL) database
 - npm or yarn
 - Google Maps API key (for geocoding and map visualization)
+- Resend API key (for email OTP delivery)
 
 ## Installation
 
@@ -44,23 +47,71 @@ A modern web application for managing blood donors, built with React, TypeScript
 
 3. **Set up environment variables**
    
-   Create a `.env` file in the root directory (see `.env.example`):
+   Create a `.env` file in the root directory:
    ```env
+   # Database Configuration
    DATABASE_URL=your_postgresql_connection_string
-   JWT_SECRET=your_jwt_secret
-   VITE_API_URL=http://localhost:3000
-   VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_for_static_maps
-   GEOCODING_API_KEY=your_google_maps_api_key_for_geocoding
+   DB_HOST=localhost
+   DB_USER=root
+   DB_PASSWORD=your_password
+   DB_NAME=blood_donor_management
+
+   # JWT Secret
+   JWT_SECRET=your_jwt_secret_key_here
+
+   # API URL
+   VITE_API_URL=http://localhost:3001
+
+   # Email Service (Resend)
+   RESEND_API_KEY=your_resend_api_key
+   RESEND_FROM_EMAIL=onboarding@resend.dev
+
+   # Google Maps APIs
+   VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+   GEOCODING_API_KEY=your_google_maps_api_key
    GEOCODING_PROVIDER=google
+   ENABLE_GEOCODING_FALLBACK=true
    ```
 
-4. **Set up the database**
+4. **Configure Google Maps API** (Required for map features)
+
+   The application uses Google Maps Static API to display donor locations.
+
+   a. **Get a Google Maps API Key:**
+      - Go to [Google Cloud Console](https://console.cloud.google.com/)
+      - Create a new project or select existing
+      - Enable **Maps Static API** and **Geocoding API**
+      - Create credentials (API Key)
+      - (Optional) Add restrictions for security
+
+   b. **Add to `.env`:**
+      ```env
+      # Frontend - Google Maps Static API for map visualization
+      VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
+      
+      # Backend - Geocoding API
+      GEOCODING_API_KEY=your_google_maps_api_key_here
+      GEOCODING_PROVIDER=google
+      # Alternative: Use 'locationiq' as provider with Locationiq API key
+      ENABLE_GEOCODING_FALLBACK=true
+      ```
+
+   c. **Important Notes:**
+      - The same Google Maps API key can be used for both frontend and backend
+      - Frontend uses it for Static Maps API
+      - Backend uses it for Geocoding API
+      - Free tier includes 28,000 map loads per month
+      - See [Google Maps Platform Pricing](https://mapsplatform.google.com/pricing/)
+
+5. **Set up the database**
    ```bash
-   # Run the database migrations
+   # Run the database schema
+   mysql -u root -p < database.sql
+   # OR for PostgreSQL:
    psql -d your_database -f database.sql
    ```
 
-5. **Start the development server**
+6. **Start the development server**
    ```bash
    # Start backend server
    npm run server
@@ -82,29 +133,9 @@ A modern web application for managing blood donors, built with React, TypeScript
 │   └── types/               # TypeScript type definitions
 ├── server/
 │   └── index.js             # Express backend server
-├── migrations/              # Database migrations
-└── database.sql             # Database schema
+├── migrations/              # Database migrations (consolidated into database.sql)
+└── database.sql             # Complete database schema
 ```
-
-## Google Maps API Setup
-
-This project uses Google Maps APIs for location services:
-
-1. **Create a Google Cloud Project**
-   - Go to [Google Cloud Console](https://console.cloud.google.com/)
-   - Create a new project or select an existing one
-
-2. **Enable Required APIs**
-   - Maps Static API (for displaying donor locations on maps)
-   - Geocoding API (for converting addresses to coordinates)
-
-3. **Create API Key**
-   - Go to "Credentials" → "Create Credentials" → "API Key"
-   - Restrict the key to only the enabled APIs above
-
-4. **Add API Key to Environment**
-   - Set `VITE_GOOGLE_MAPS_API_KEY` for frontend (Static Maps)
-   - Set `GEOCODING_API_KEY` for backend (Geocoding)
 
 ## Admin Features
 
