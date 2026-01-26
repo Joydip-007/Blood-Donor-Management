@@ -132,6 +132,9 @@ CREATE TABLE EMERGENCY_REQUEST_MATCHED_DONORS (
 -- Description: Stores OTP codes for email verification during registration
 -- Note: Currently the application uses in-memory storage (otpStore Map)
 --       This table is designed for production use with persistent OTP storage
+-- Design: Email-based (not donor_id) because OTP is sent BEFORE donor creation
+--         during registration. Once verified, the donor record is created.
+-- Cleanup: Implement a scheduled job to delete expired OTP records (expires_at < NOW())
 -- =============================================
 CREATE TABLE OTP (
     otp_id INT PRIMARY KEY AUTO_INCREMENT,
